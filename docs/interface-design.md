@@ -1,12 +1,19 @@
 # 5. インターフェース設計
 
-### 5.1 プロップスと型定義
+コンポーネントのプロップス、APIメソッド、イベントハンドラの設計です。
+型定義の詳細は [`src/types/index.ts`](../src/types/index.ts) を参照してください。
+
+### 5.1 プロップスと型定義 (`MicromouseVisualizerProps`)
+コンポーネントが受け取るプロパティとその型です。
+
 ```typescript
+import type { MazeData, MouseState, CameraViewPreset } from '../src/types';
+
 interface MicromouseVisualizerProps {
   // 迷路データ
   mazeData?: MazeData;
-  // 軌跡データ（時系列プロファイル）
-  trajectoryProfile?: TrajectoryProfile;
+  // 軌跡データ（時系列プロファイル） - 未実装
+  // trajectoryProfile?: TrajectoryProfile;
   // マウスの初期状態
   initialMouseState?: MouseState;
   // 表示サイズ
@@ -17,28 +24,30 @@ interface MicromouseVisualizerProps {
   showGridHelper?: boolean;
   showAxesHelper?: boolean;
   // カメラオプション
-  cameraType?: 'perspective' | 'orthographic';
-  initialViewPreset?: 'top' | 'angle' | 'side';
-  // 壁表示オプション
-  wallColorDiscovered?: string;
-  wallColorUndiscovered?: string;
-  wallOpacityUndiscovered?: number;
-  // イベントコールバック
-  onMazeLoaded?: () => void;
-  onStepComplete?: (mouseState: MouseState) => void;
-  onGoalReached?: () => void;
-  onCellClick?: (x: number, y: number) => void;
-  // 再生コントロールオプション
-  autoPlay?: boolean;
-  speed?: number; // 再生速度の倍率
-  stepInterval?: number; // ステップ間の時間間隔（ミリ秒）
+  // cameraType?: 'perspective' | 'orthographic'; // 未実装
+  initialViewPreset?: CameraViewPreset;
+  // 壁表示オプション - 未実装
+  // wallColorDiscovered?: string;
+  // wallColorUndiscovered?: string;
+  // wallOpacityUndiscovered?: number;
+  // イベントコールバック - 未実装
+  // onMazeLoaded?: () => void;
+  // onStepComplete?: (mouseState: MouseState) => void;
+  // onGoalReached?: () => void;
+  // onCellClick?: (x: number, y: number) => void;
+  // 再生コントロールオプション - 未実装
+  // autoPlay?: boolean;
+  // speed?: number; // 再生速度の倍率
+  // stepInterval?: number; // ステップ間の時間間隔（ミリ秒）
 }
 ```
 
-### 5.2 APIメソッド
-各コンポーネントが外部から操作できるメソッド：
+### 5.2 APIメソッド (`MicromouseVisualizerMethods`)
+外部からコンポーネントを操作するためのメソッドです。（現時点では未実装）
 
 ```typescript
+import type { MazeData, MouseState, CameraViewPreset } from '../src/types';
+
 interface MicromouseVisualizerMethods {
   // アニメーション制御
   play: () => void;
@@ -55,8 +64,8 @@ interface MicromouseVisualizerMethods {
   toggleWall: (x: number, y: number, direction: 'north' | 'east' | 'south' | 'west') => void;
   
   // カメラ操作
-  setCameraView: (preset: 'top' | 'angle' | 'side') => void;
-  setCameraType: (type: 'perspective' | 'orthographic') => void;
+  setCameraView: (preset: CameraViewPreset) => void;
+  // setCameraType: (type: 'perspective' | 'orthographic') => void;
 }
 ```
 

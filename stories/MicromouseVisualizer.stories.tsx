@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer'; // 相対パスを確認
+import { MazeData } from '../src/types'; // Import MazeData type
 
 // --- サンプルデータ ---
 
@@ -140,8 +141,8 @@ export const NoInitialMouse: Story = {
 
 export const NoMazeData: Story = {
      args: {
-      // mazeData: undefined, // mazeDataがない場合（Loading表示の確認）
-      // initialMouseState: undefined,
+      mazeData: undefined, // mazeDataがない場合（Loading表示の確認）
+      initialMouseState: undefined,
       width: 400,
       height: 300,
       backgroundColor: '#cccccc',
