@@ -49,41 +49,7 @@
 
 ## 3. データ構造
 
-### 3.1 迷路データ形式
-```typescript
-interface MazeData {
-  size: number; // 迷路のサイズ(常に幅と高さは同一の正方形とする)
-  walls: {
-    vwall: boolean[][];  // 垂直向きの壁の存在
-    hwall: boolean[][];   // 水平向きの壁の存在
-  };
-  start: { x: number; y: number }; // マス目単位でのスタート座標
-  goal: { x: number; y: number }[]; // マス目単位でのゴール座標
-}
-```
-
-### 3.2 マウス状態データ形式
-```typescript
-interface MouseState {
-  position: { x: number; y: number }; // 物理座標[m]単位
-  angle : number; // 物理角度[rad] X軸方向が0度、Y軸方向が90度
-  // アニメーションのための追加情報
-  isMoving: boolean;
-  moveProgress: number; // 移動の進行状況を表す
-}
-```
-
-### 3.3 マウスアニメーション用プロファイル
-```typescript
-interface TrajectoryElement {
-  position: { x: number; y: number }; // 物理座標[m]単位
-  angle : number; // 物理角度[rad] X軸方向が0度、Y軸方向が90度
-}
-
-type TrajectoryProfile = Map<number, TrajectoryElement> // 時刻をキー、値をその時刻での位置・角度としたプロファイル
-
-```
-
+詳細は [データ構造](./data-structures.md) を参照してください。
 
 ## 4. 主要な機能の実装方針
 
@@ -113,83 +79,7 @@ type TrajectoryProfile = Map<number, TrajectoryElement> // 時刻をキー、値
 
 ## 5. インターフェース設計
 
-### 5.1 プロップスと型定義
-```typescript
-interface MicromouseVisualizerProps {
-  // 迷路データ
-  mazeData?: MazeData;
-  // 軌跡データ（時系列プロファイル）
-  trajectoryProfile?: TrajectoryProfile;
-  // マウスの初期状態
-  initialMouseState?: MouseState;
-  // 表示サイズ
-  width?: number;
-  height?: number;
-  // 表示オプション
-  backgroundColor?: string;
-  showGridHelper?: boolean;
-  showAxesHelper?: boolean;
-  // カメラオプション
-  cameraType?: 'perspective' | 'orthographic';
-  initialViewPreset?: 'top' | 'angle' | 'side';
-  // 壁表示オプション
-  wallColorDiscovered?: string;
-  wallColorUndiscovered?: string;
-  wallOpacityUndiscovered?: number;
-  // イベントコールバック
-  onMazeLoaded?: () => void;
-  onStepComplete?: (mouseState: MouseState) => void;
-  onGoalReached?: () => void;
-  onCellClick?: (x: number, y: number) => void;
-  // 再生コントロールオプション
-  autoPlay?: boolean;
-  speed?: number; // 再生速度の倍率
-  stepInterval?: number; // ステップ間の時間間隔（ミリ秒）
-}
-```
-
-### 5.2 APIメソッド
-各コンポーネントが外部から操作できるメソッド：
-
-```typescript
-interface MicromouseVisualizerMethods {
-  // アニメーション制御
-  play: () => void;
-  pause: () => void;
-  stop: () => void; // 最初に戻る
-  step: (forward?: boolean) => void; // 1ステップ進める/戻す
-  seekTo: (time: number) => void; // 特定時間にシーク
-  
-  // マウス制御
-  setMouseState: (state: MouseState) => void;
-  
-  // 迷路操作
-  setMazeData: (data: MazeData) => void;
-  toggleWall: (x: number, y: number, direction: 'north' | 'east' | 'south' | 'west') => void;
-  
-  // カメラ操作
-  setCameraView: (preset: 'top' | 'angle' | 'side') => void;
-  setCameraType: (type: 'perspective' | 'orthographic') => void;
-}
-```
-
-### 5.3 イベントハンドラ
-- **マウスイベント**：
-  - セルクリック：`onCellClick`を発火し、迷路座標（x, y）を返す
-  - 壁クリック：特定のセルの壁を選択する
-  - ドラッグ：カメラ位置の調整
-  
-- **キーボードショートカット**：
-  - スペース：再生/一時停止
-  - 矢印キー：次/前のステップ
-  - 1-9キー：再生速度の切り替え
-  - Rキー：カメラビューをリセット
-  - Vキー：カメラタイプ切り替え
-  
-### 5.3 外部APIとの連携
-- 迷路データのインポート/エクスポート機能
-  - Mazefile形式に対応
-- ログの再生機能
+詳細は [インターフェース設計](./interface-design.md) を参照してください。
 
 ## 6. 拡張性と今後の計画
 
@@ -210,31 +100,7 @@ interface MicromouseVisualizerMethods {
 
 ## 7. テスト計画
 
-ほぼ自分専用ライブラリなのでそこまで綿密なテストは不要
-
-### 7.1 単体テスト
-- **コンポーネントテスト**：
-  - 各コンポーネント（MazeRenderer, MouseRenderer, TrajectoryRenderer）の独立した動作確認
-  - メソッドの動作確認（setCameraView, setMouseStateなど）
-- **データ処理テスト**：
-  - 迷路データの正しい解釈と描画
-  - 軌跡データの時系列に沿った適切な処理
-  - 座標変換（迷路座標⇔物理座標）の精度確認
-
-### 7.2 統合・可視化テスト
-- **Storybookを活用したビジュアルテスト**：
-  - さまざまな迷路サイズとデータでのレンダリング確認
-  - ウィンドウサイズに対するレスポンシブ対応の検証
-- **インタラクションテスト**：
-  - マウス操作（クリック、ドラッグ）の応答性
-  - キーボードショートカットの動作確認
-- **アニメーションテスト**：
-  - 異なる速度設定での動作確認
-  - ステップ実行とシークの精度確認
-  - 長時間再生時の安定性
-
-### 7.3 クロスブラウザテスト
-- 主要ブラウザ(Chrome)での動作確認
+詳細は [テスト計画](./testing-plan.md) を参照してください。
 
 ## 8. 実装スケジュール
 
@@ -292,18 +158,4 @@ interface MicromouseVisualizerMethods {
 
 ## 9. 参考情報
 
-### 9.1 マイクロマウス競技ルール
-- **標準的な迷路サイズ**：16x16マスまたは32x32マスの正方形迷路が基本
-- **壁の配置ルール**：
-  - 外周は全て壁で囲まれている
-  - 内壁は垂直または水平に配置
-  - 一つのセルは最大4つの壁（北、東、南、西）で囲まれる
-- **スタートとゴール位置**：
-  - スタートは通常、左下（南西）の角
-  - ゴールは大会毎に指定される
-
-### 9.2 関連技術資料
-- **Three.js/React Three Fiber**：
-  - [Three.js公式ドキュメント](https://threejs.org/docs/)
-  - [React Three Fiber入門ガイド](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction)
-  - [React Three Dreiコンポーネント一覧](https://github.com/pmndrs/drei)
+詳細は [参考情報](./reference.md) を参照してください。
