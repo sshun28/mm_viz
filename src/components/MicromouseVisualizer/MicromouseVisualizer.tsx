@@ -39,7 +39,7 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   height = 500,
   backgroundColor = '#ffffff',
   gridSize = 16,
-  showAxesHelper = true, // 新しいプロパティ
+  showAxesHelper = false,
 }) => {
   const cellSize = 0.09;
 
@@ -62,14 +62,14 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
         {showAxesHelper && (
           <>
             <axesHelper args={[1]} position={[0, 0, 0]} />
-            {/* 軸のラベルを追加 - billboardプロパティを追加して常にカメラ方向を向くように設定 */}
+            {/* 軸のラベルを追加 */}
             <Text position={[1.1, 0, 0]} fontSize={0.1} color="red" >X</Text>
             <Text position={[0, 1.1, 0]} fontSize={0.1} color="green">Y</Text>
             <Text position={[0, 0, 1.1]} fontSize={0.1} color="blue">Z</Text>
           </>
         )}
         {/* 視点操作をZ軸まわりの動作に修正 */}
-        <OrbitControls />
+        <OrbitControls target={[cellSize * gridSize / 2, 0, cellSize * gridSize / 2]} />
       </Canvas>
     </div>
   );
