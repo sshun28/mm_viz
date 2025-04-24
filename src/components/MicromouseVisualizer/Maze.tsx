@@ -3,23 +3,16 @@ import * as THREE from 'three';
 import { MazeData } from '../../types';
 import { 
     CELL_SIZE, 
-    WALL_HEIGHT, 
-    WALL_THICKNESS, 
     FLOOR_THICKNESS, 
-    PILLAR_SIZE, 
-    PILLAR_HEIGHT, 
-    PILLAR_COLOR 
 } from '../../config/constants';
+import Wall from './Wall';
+import Pillar from './Pillar';
 
 // 迷路描画コンポーネント
 const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   const { size, walls } = mazeData;
   const mazeWidth = size * CELL_SIZE;
   const mazeDepth = size * CELL_SIZE; // Y方向のサイズだが変数名はDepthのまま
-  
-  // オフセット変数を削除 - 迷路の左下隅がシーンの原点(0,0,0)に来るようにする
-  // const offsetX = -mazeWidth / 2 + CELL_SIZE / 2;
-  // const offsetY = -mazeDepth / 2 + CELL_SIZE / 2;
 
   // 床 (X-Y平面に配置) - 迷路の中心に配置
   const floor = (
@@ -39,12 +32,12 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
         // 壁の中心座標を計算（オフセットなし）
         const posX = x * CELL_SIZE; // X座標（グリッドライン上）
         const posY = y * CELL_SIZE + CELL_SIZE / 2; // Y座標（セルの中心）
-        const posZ = WALL_HEIGHT / 2; // Z座標 (高さの中心)
         wallElements.push(
-          <mesh key={`vwall-${y}-${x}`} position={[posX, posY, posZ]}>
-            <boxGeometry args={[WALL_THICKNESS, CELL_SIZE, WALL_HEIGHT]} />
-            <meshStandardMaterial color="#ffffff" />
-          </mesh>
+          <Wall 
+            key={`vwall-${y}-${x}`} 
+            position={[posX, posY, 0]}
+            rotation={[0, 0, Math.PI / 2]} // 垂直壁は90度回転
+          />
         );
       }
     }
@@ -57,12 +50,12 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
         // 壁の中心座標を計算（オフセットなし）
         const posX = x * CELL_SIZE + CELL_SIZE / 2; // X座標（セルの中心）
         const posY = y * CELL_SIZE; // Y座標（グリッドライン上）
-        const posZ = WALL_HEIGHT / 2; // Z座標 (高さの中心)
         wallElements.push(
-          <mesh key={`hwall-${y}-${x}`} position={[posX, posY, posZ]}>
-            <boxGeometry args={[CELL_SIZE, WALL_THICKNESS, WALL_HEIGHT]} />
-            <meshStandardMaterial color="#ffffff" />
-          </mesh>
+          <Wall 
+            key={`hwall-${y}-${x}`} 
+            position={[posX, posY, 0]}
+            rotation={[0, 0, 0]} // 水平壁は回転なし
+          />
         );
       }
     }
@@ -76,18 +69,14 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
       // 柱の中心座標を計算（オフセットなし）
       const posX = x * CELL_SIZE; // X座標（グリッドライン上）
       const posY = y * CELL_SIZE; // Y座標（グリッドライン上）
-      const posZ = PILLAR_HEIGHT / 2; // Z座標 (高さの中心)
       pillarElements.push(
-        <mesh key={`pillar-${y}-${x}`} position={[posX, posY, posZ]}>
-          <boxGeometry args={[PILLAR_SIZE, PILLAR_SIZE, PILLAR_HEIGHT]} />
-          <meshStandardMaterial color={PILLAR_COLOR} />
-        </mesh>
+        <Pillar 
+          key={`pillar-${y}-${x}`} 
+          position={[posX, posY, 0]}
+        />
       );
     }
   }
-
-  // スタート/ゴールマーカーは削除
-  // 外部コンポーネントで実装するように変更
 
   return (
     <group>
