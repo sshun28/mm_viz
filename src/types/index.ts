@@ -9,7 +9,7 @@ export interface MazeData {
 }
 
 export interface MouseState {
-    position: { x: number; y: number }; // セル座標 (0-indexed)
+    position: { x: number; y: number }; // 物理座標[m] (Three.jsのX-Y平面に対応)
     angle: number; // 物理角度[rad] Z軸周りの回転 (Three.js空間に対応)
     // アニメーションのための追加情報 (必要に応じて追加)
     // isMoving?: boolean;

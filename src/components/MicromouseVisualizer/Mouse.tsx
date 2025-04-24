@@ -1,22 +1,21 @@
-import React, { useMemo } from 'react'; // useMemo をインポート
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { MouseState } from '../../types';
 import { CELL_SIZE, MOUSE_SIZE, FLOOR_THICKNESS } from '../../config/constants';
 
 // マウス描画コンポーネント
 const Mouse: React.FC<{ mouseState: MouseState; mazeSize: number }> = ({ mouseState, mazeSize }) => {
+    // mazeSize はオフセット計算に必要なので残す
     const mazeWidth = mazeSize * CELL_SIZE;
     const mazeDepth = mazeSize * CELL_SIZE;
     const offsetX = -mazeWidth / 2 + CELL_SIZE / 2;
-    const offsetY = -mazeDepth / 2 + CELL_SIZE / 2; // Y軸オフセット
+    const offsetY = -mazeDepth / 2 + CELL_SIZE / 2;
 
-    // セル座標を物理座標に変換
-    const physicalX = mouseState.position.x * CELL_SIZE;
-    const physicalY = mouseState.position.y * CELL_SIZE;
-
-    // 物理座標をThree.js座標に変換
-    const posX = offsetX + physicalX;
-    const posY = offsetY + physicalY;
+    // MouseState.position はすでに物理座標なので変換は不要
+    // ただし、Three.js空間でのオフセットは適用する必要があるかもしれない
+    // -> いや、MouseState.position自体がThree.js空間の物理座標(X,Y)を意図しているのでオフセットも不要
+    const posX = mouseState.position.x;
+    const posY = mouseState.position.y;
     const posZ = MOUSE_SIZE / 2 + FLOOR_THICKNESS / 2; // Z座標 (高さ)
 
     // 角度をThree.jsの回転（Z軸周り）に変換

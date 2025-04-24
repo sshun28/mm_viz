@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer'; // 相対パスを確認
-import { MazeData } from '../src/types'; // Import MazeData type
+import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
+import { MazeData, MouseState } from '../src/types';
+import { CELL_SIZE } from '../src/config/constants'; // CELL_SIZE をインポート
+
+// --- Helper Function --- (MicromouseVisualizer.tsx と同じ定義に修正)
+const cellToPhysical = (cellX: number, cellY: number): { x: number; y: number } => {
+    const physicalX = cellX * CELL_SIZE + CELL_SIZE / 2;
+    const physicalY = cellY * CELL_SIZE + CELL_SIZE / 2;
+    return { x: physicalX, y: physicalY };
+};
 
 // --- サンプルデータ ---
 
@@ -50,11 +58,18 @@ const createMazeData = (size: number): MazeData => {
 const sampleMazeData16 = createMazeData(16);
 const sampleMazeData4 = createMazeData(4);
 
+// スタート地点(0,0)の物理座標を計算 (mazeSize引数不要)
+const startPhysicalPos16 = cellToPhysical(0, 0);
+const startPhysicalPos4 = cellToPhysical(0, 0); // 4x4でも計算式は同じ
 
-const sampleInitialMouseState = {
-  // positionはセルのインデックス (0-indexed)
-  position: { x: 0, y: 0 }, // スタート地点のセル(0,0)
-  angle: Math.PI / 2, // 初期向き (Y軸正方向 = 北 = -Z方向 in Three.js)
+const sampleInitialMouseState16: MouseState = {
+  position: startPhysicalPos16, // (CELL_SIZE/2, CELL_SIZE/2) が入るはず
+  angle: Math.PI / 2, // 北向き
+};
+
+const sampleInitialMouseState4: MouseState = {
+  position: startPhysicalPos4, // (CELL_SIZE/2, CELL_SIZE/2) が入るはず
+  angle: Math.PI / 2, // 北向き
 };
 
 
@@ -87,7 +102,7 @@ type Story = StoryObj<typeof meta>;
 export const Default16x16: Story = {
   args: {
     mazeData: sampleMazeData16,
-    initialMouseState: sampleInitialMouseState,
+    initialMouseState: sampleInitialMouseState16, // 正しい物理座標を使用
     width: 800, // StorybookのCanvasサイズに合わせるか、指定する
     height: 600,
     showGridHelper: true, // デフォルトで表示
@@ -124,10 +139,7 @@ export const SmallMaze4x4: Story = {
     args: {
       ...Default16x16.args,
       mazeData: sampleMazeData4,
-      initialMouseState: { // スタート位置も合わせる
-          position: { x: 0, y: 0 },
-          angle: Math.PI / 2,
-      },
+      initialMouseState: sampleInitialMouseState4, // 正しい物理座標を使用
       initialViewPreset: 'angle', // 小さい迷路でも角度付きビュー
     },
 };

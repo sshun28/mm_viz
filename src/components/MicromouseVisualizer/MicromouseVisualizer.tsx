@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'; // useMemo をインポート
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // useCallback をインポート
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import './MicromouseVisualizer.css';
@@ -7,6 +7,17 @@ import { CELL_SIZE, FLOOR_THICKNESS, cameraPresets } from '../../config/constant
 import CameraController from './CameraController'; // Import extracted component
 import Maze from './Maze'; // Import extracted component
 import Mouse from './Mouse'; // Import extracted component
+
+// --- Helper Function --- (Componentの外に定義)
+const cellToPhysical = (cellX: number, cellY: number, mazeSize: number): { x: number; y: number } => {
+    const mazeWidth = mazeSize * CELL_SIZE;
+    const mazeDepth = mazeSize * CELL_SIZE;
+    const offsetX = -mazeWidth / 2 + CELL_SIZE / 2;
+    const offsetY = -mazeDepth / 2 + CELL_SIZE / 2;
+    const physicalX = offsetX + cellX * CELL_SIZE;
+    const physicalY = offsetY + cellY * CELL_SIZE;
+    return { x: physicalX, y: physicalY };
+};
 
 // --- Props定義 (設計ドキュメントから一部抜粋) ---
 interface MicromouseVisualizerProps {
@@ -31,11 +42,24 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   showAxesHelper = false, // デフォルトは非表示に変更
   initialViewPreset = 'angle',
 }) => {
+
+  // 迷路データがない場合は何も表示しないか、ローディング表示
+  if (!mazeData) {
+    return <div style={{ width, height, backgroundColor: '#dddddd', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Maze Data...</div>;
+  }
+
+  const mazeSize = mazeData.size;
+
   // デフォルトのマウス状態を useMemo でメモ化
-  const defaultMouseState = useMemo<MouseState>(() => ({
-    position: { x: mazeData?.start?.x ?? 0, y: mazeData?.start?.y ?? 0 }, // スタート地点をデフォルトに
-    angle: Math.PI / 2, // 北向き (+Y方向)
-  }), [mazeData?.start?.x, mazeData?.start?.y]); // mazeData の start 座標に依存
+  const defaultMouseState = useMemo<MouseState>(() => {
+    // スタート地点のセル座標を物理座標に変換
+    const startPhysicalPos = cellToPhysical(mazeData.start.x, mazeData.start.y, mazeSize);
+    return {
+      position: startPhysicalPos,
+      angle: Math.PI / 2, // 北向き (+Y方向)
+    };
+  // mazeData.start と mazeSize に依存
+  }, [mazeData.start.x, mazeData.start.y, mazeSize]);
 
   // useStateの初期値は initialMouseState があればそれ、なければメモ化した defaultMouseState を使用
   const [currentMouseState, setCurrentMouseState] = useState<MouseState>(
@@ -50,12 +74,6 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
     setCurrentMouseState(initialMouseState ?? defaultMouseState);
   }, [initialMouseState, defaultMouseState]); // 依存配列を修正
 
-  // 迷路データがない場合は何も表示しないか、ローディング表示
-  if (!mazeData) {
-    return <div style={{ width, height, backgroundColor: '#dddddd', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Maze Data...</div>;
-  }
-
-  const mazeSize = mazeData.size;
   const mazePhysicalSize = mazeSize * CELL_SIZE;
   // グリッドヘルパーと軸ヘルパーの中心を迷路の中心に合わせる
   // const helperCenterOffset = mazePhysicalSize / 2 - CELL_SIZE / 2; // Z-upでは不要かも
@@ -93,7 +111,7 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
         <directionalLight position={[-5, -5, -5]} intensity={0.3} /> {/* 補助光 */}
 
         {/* 迷路 */}
-        <group position={[0, 0, 0]}>
+        <group position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]}>
             <Maze mazeData={mazeData} />
         </group>
 
@@ -104,12 +122,11 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
 
         {/* ヘルパー (Z-upに合わせて調整) */}
         {showGridHelper && (
+            // Adjust the GridHelper position to align with the maze
             <primitive
                 object={new THREE.GridHelper(mazePhysicalSize, mazeSize, '#888888', '#bbbbbb')}
-                // X-Y平面に配置するため回転が必要
-                rotation={[Math.PI / 2, 0, 0]}
-                // position={[0, 0, FLOOR_THICKNESS / 2]} // Z座標を床の上面(0)に修正
-                position={[0, 0, 0]} // Z座標を床の上面(0)に修正
+                rotation={[Math.PI / 2, 0, 0]} // Ensure the grid is aligned with the X-Y plane
+                position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]} // Center the grid on the maze
             />
         )}
         {showAxesHelper && (

@@ -28,13 +28,27 @@ const CameraController: React.FC<{
     }
   }, [camera, controlsFromHook]);
 
+  // Define distanceFactor based on maze size
+  const distanceFactor = mazeSize * CELL_SIZE * 1.5;
 
   const setCameraView = useCallback((presetKey: CameraViewPreset) => {
+    // Correct the camera preset positions to ensure accurate alignment
     const preset = cameraPresets[presetKey];
-    const mazePhysicalSize = mazeSize * CELL_SIZE;
-    const distanceFactor = presetKey === 'top' ? Math.max(5, mazePhysicalSize * 1.2) : Math.max(5, mazePhysicalSize * 1.5);
-    const adjustedPosition = new THREE.Vector3(...preset.position).normalize().multiplyScalar(distanceFactor);
-    const target = new THREE.Vector3(...preset.target);
+    const mazeCenterOffset = mazeSize * CELL_SIZE / 2;
+    let adjustedPosition;
+
+    if (presetKey === 'top') {
+      adjustedPosition = new THREE.Vector3(mazeCenterOffset, mazeCenterOffset, mazeSize * CELL_SIZE * 1.5); // Directly above the maze
+    } else if (presetKey === 'side') {
+      adjustedPosition = new THREE.Vector3(mazeCenterOffset, -mazeSize * CELL_SIZE * 1.5, mazeCenterOffset); // Side view
+    } else {
+      adjustedPosition = new THREE.Vector3(...preset.position)
+        .add(new THREE.Vector3(mazeCenterOffset, mazeCenterOffset, 0))
+        .normalize()
+        .multiplyScalar(distanceFactor);
+    }
+    // Update the camera target to the maze center
+    const target = new THREE.Vector3(mazeSize * CELL_SIZE / 2, mazeSize * CELL_SIZE / 2, 0);
 
     camera.position.copy(adjustedPosition);
 
