@@ -13,6 +13,9 @@ const CameraController: React.FC<{
 }> = ({ initialViewPreset = 'angle', mazeSize = 16 }) => { // 戻り値の型注釈を削除
   const { camera, controls: controlsFromHook } = useThree<RootState>();
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  const mazeCenterRef = useRef<THREE.Vector3>(
+    new THREE.Vector3(mazeSize * CELL_SIZE / 2, mazeSize * CELL_SIZE / 2, 0)
+  );
 
   // Z-up設定
   useEffect(() => {
@@ -20,7 +23,11 @@ const CameraController: React.FC<{
     const currentControls = controlsRef.current || controlsFromHook;
     if (currentControls) {
         if ('target' in currentControls && typeof (currentControls as any).target?.set === 'function') {
-            (currentControls as any).target.set(0, 0, 0);
+            (currentControls as any).target.set(
+              mazeCenterRef.current.x, 
+              mazeCenterRef.current.y, 
+              0
+            ); // Z座標を0に固定
         }
         if (typeof (currentControls as any).update === 'function') {
             (currentControls as any).update();
@@ -49,6 +56,7 @@ const CameraController: React.FC<{
     }
     // Update the camera target to the maze center
     const target = new THREE.Vector3(mazeSize * CELL_SIZE / 2, mazeSize * CELL_SIZE / 2, 0);
+    mazeCenterRef.current = target.clone();
 
     camera.position.copy(adjustedPosition);
 
@@ -101,8 +109,21 @@ const CameraController: React.FC<{
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [resetCamera, setCameraView]); // resetCamera と setCameraView を依存配列に追加
 
+  // ターゲット座標のZ値を0に固定するためのハンドラ
+  const handleControlChange = useCallback(() => {
+    const currentControls = controlsRef.current;
+    if (currentControls && 'target' in currentControls) {
+      (currentControls as any).target.z = 0;
+    }
+  }, []);
 
-  return <OrbitControls ref={controlsRef} />;
+  return (
+    <OrbitControls 
+      ref={controlsRef} 
+      onChange={handleControlChange}
+      makeDefault
+    />
+  );
 };
 
 export default CameraController;
