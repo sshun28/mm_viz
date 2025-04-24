@@ -1,18 +1,22 @@
+import React from 'react'; // React のインポートを追加
 import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
+import Mouse from '../src/components/MicromouseVisualizer/Mouse'; // Mouse をインポート
 import { MazeData, MouseState } from '../src/types';
-import { CELL_SIZE } from '../src/config/constants'; // CELL_SIZE をインポート
+import { CELL_SIZE } from '../src/config/constants';
 
-// --- Helper Function --- (MicromouseVisualizer.tsx と同じ定義に修正)
+// --- Helper Function ---
+// セル座標を物理座標に変換するヘルパー関数
 const cellToPhysical = (cellX: number, cellY: number): { x: number; y: number } => {
     const physicalX = cellX * CELL_SIZE + CELL_SIZE / 2;
     const physicalY = cellY * CELL_SIZE + CELL_SIZE / 2;
     return { x: physicalX, y: physicalY };
 };
 
+
 // --- サンプルデータ ---
 
-// 16x16迷路データ生成ヘルパー
+// 16x16迷路データ生成ヘルパー (変更なし)
 const createMazeData = (size: number): MazeData => {
     const vwall: boolean[][] = Array(size).fill(null).map(() => Array(size + 1).fill(false));
     const hwall: boolean[][] = Array(size + 1).fill(null).map(() => Array(size).fill(false));
@@ -58,32 +62,32 @@ const createMazeData = (size: number): MazeData => {
 const sampleMazeData16 = createMazeData(16);
 const sampleMazeData4 = createMazeData(4);
 
-// スタート地点(0,0)の物理座標を計算 (mazeSize引数不要)
+// スタート地点(0,0)の物理座標を計算
 const startPhysicalPos16 = cellToPhysical(0, 0);
-const startPhysicalPos4 = cellToPhysical(0, 0); // 4x4でも計算式は同じ
+const startPhysicalPos4 = cellToPhysical(0, 0);
 
 const sampleInitialMouseState16: MouseState = {
-  position: startPhysicalPos16, // (CELL_SIZE/2, CELL_SIZE/2) が入るはず
+  position: startPhysicalPos16,
   angle: Math.PI / 2, // 北向き
 };
 
 const sampleInitialMouseState4: MouseState = {
-  position: startPhysicalPos4, // (CELL_SIZE/2, CELL_SIZE/2) が入るはず
+  position: startPhysicalPos4,
   angle: Math.PI / 2, // 北向き
 };
 
 
-const meta = {
+// meta オブジェクトの型を明示的に指定
+const meta: Meta<typeof MicromouseVisualizer> = {
   title: 'Components/MicromouseVisualizer',
   component: MicromouseVisualizer,
   parameters: {
-    // layout: 'centered', // 全画面表示の方が確認しやすいので解除
     layout: 'fullscreen',
   },
   tags: ['autodocs'],
   argTypes: {
     mazeData: { control: 'object' },
-    initialMouseState: { control: 'object' },
+    // initialMouseState を削除
     width: { control: 'number' },
     height: { control: 'number' },
     backgroundColor: { control: 'color' },
@@ -93,73 +97,101 @@ const meta = {
         control: { type: 'select' },
         options: ['top', 'angle', 'side'],
     },
+    children: { control: false }, // children は Storybook のコントロールでは設定しない
   },
-} satisfies Meta<typeof MicromouseVisualizer>;
+};
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+// --- ストーリー定義 ---
+
+// デフォルトのストーリー: 16x16 迷路とマウス
 export const Default16x16: Story = {
-  args: {
+  args: { // args にはコンポーネントの Props を指定
     mazeData: sampleMazeData16,
-    initialMouseState: sampleInitialMouseState16, // 正しい物理座標を使用
-    width: 800, // StorybookのCanvasサイズに合わせるか、指定する
+    width: 800,
     height: 600,
-    showGridHelper: true, // デフォルトで表示
-    showAxesHelper: true, // デフォルトで表示
+    showGridHelper: true,
+    showAxesHelper: true,
     initialViewPreset: 'angle',
     backgroundColor: '#e0e0e0',
   },
+  render: (args) => (
+    <MicromouseVisualizer {...args}>
+      <Mouse mouseState={sampleInitialMouseState16} />
+    </MicromouseVisualizer>
+  ),
 };
 
+// トップビュー
 export const TopView16x16: Story = {
     args: {
-      ...Default16x16.args, // Defaultの引数を継承
+      ...Default16x16.args, // Default の args を継承
       initialViewPreset: 'top',
     },
+    render: Default16x16.render, // render 関数を再利用
 };
 
+// サイドビュー
 export const SideView16x16: Story = {
     args: {
       ...Default16x16.args,
       initialViewPreset: 'side',
     },
+    render: Default16x16.render,
 };
 
-
+// ヘルパー非表示
 export const NoHelpers16x16: Story = {
     args: {
       ...Default16x16.args,
       showGridHelper: false,
       showAxesHelper: false,
     },
+    render: Default16x16.render,
 };
 
+// 小さい迷路 (4x4)
 export const SmallMaze4x4: Story = {
     args: {
-      ...Default16x16.args,
+      // Default16x16.args から必要な props のみコピー
       mazeData: sampleMazeData4,
-      initialMouseState: sampleInitialMouseState4, // 正しい物理座標を使用
-      initialViewPreset: 'angle', // 小さい迷路でも角度付きビュー
+      width: Default16x16.args.width,
+      height: Default16x16.args.height,
+      showGridHelper: Default16x16.args.showGridHelper,
+      showAxesHelper: Default16x16.args.showAxesHelper,
+      initialViewPreset: 'angle',
+      backgroundColor: Default16x16.args.backgroundColor,
     },
+    render: (args) => (
+        <MicromouseVisualizer {...args}>
+          <Mouse mouseState={sampleInitialMouseState4} />
+        </MicromouseVisualizer>
+      ),
 };
 
-export const NoInitialMouse: Story = {
+// マウスなし (children を渡さない)
+export const NoMouse: Story = {
      args: {
-      ...Default16x16.args,
-      initialMouseState: undefined, // マウスを表示しないケース
+      ...Default16x16.args, // Default の args を継承
+      // initialMouseState: undefined, // 削除済み
     },
+    render: (args) => (
+        <MicromouseVisualizer {...args} />
+      ),
 };
 
+// 迷路データなし (Loading 表示の確認)
 export const NoMazeData: Story = {
-     args: {
-      mazeData: undefined, // mazeDataがない場合（Loading表示の確認）
-      initialMouseState: undefined,
+     args: { // args にはコンポーネントの Props を指定
+      mazeData: undefined,
       width: 400,
       height: 300,
       backgroundColor: '#cccccc',
+      // 他の props はデフォルト値が使われる
     },
-     // mazeDataがないとコンポーネントがエラーを出す可能性があるため、
-     // Storybook上では最小限のデータを渡すか、argsを空にする
-     // render: () => <MicromouseVisualizer width={400} height={300} backgroundColor="#cccccc" />
+     render: (args) => (
+        <MicromouseVisualizer {...args} />
+      ),
 };

@@ -1,140 +1,96 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'; // useCallback をインポート
+import React, { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import './MicromouseVisualizer.css';
-import { MazeData, MouseState, CameraViewPreset } from '../../types'; // Import types
-import { CELL_SIZE, FLOOR_THICKNESS, cameraPresets } from '../../config/constants'; // Import constants
+// MouseState のインポートを削除
+import { MazeData, CameraViewPreset } from '../../types'; // Import types
+import { CELL_SIZE, /* FLOOR_THICKNESS, */ cameraPresets } from '../../config/constants'; // FLOOR_THICKNESS は未使用なのでコメントアウト
 import CameraController from './CameraController'; // Import extracted component
 import Maze from './Maze'; // Import extracted component
-import Mouse from './Mouse'; // Import extracted component
+// Mouse のインポートを削除
 
-// --- Helper Function --- (Componentの外に定義)
-const cellToPhysical = (cellX: number, cellY: number, mazeSize: number): { x: number; y: number } => {
-    const mazeWidth = mazeSize * CELL_SIZE;
-    const mazeDepth = mazeSize * CELL_SIZE;
-    const offsetX = -mazeWidth / 2 + CELL_SIZE / 2;
-    const offsetY = -mazeDepth / 2 + CELL_SIZE / 2;
-    const physicalX = offsetX + cellX * CELL_SIZE;
-    const physicalY = offsetY + cellY * CELL_SIZE;
-    return { x: physicalX, y: physicalY };
-};
-
-// --- Props定義 (設計ドキュメントから一部抜粋) ---
+// --- Props定義 ---
 interface MicromouseVisualizerProps {
-  mazeData?: MazeData;
-  initialMouseState?: MouseState;
+  mazeData?: MazeData; // mazeData は optional のまま
   width?: number;
   height?: number;
   backgroundColor?: string;
   showGridHelper?: boolean;
   showAxesHelper?: boolean;
-  initialViewPreset?: CameraViewPreset; // Use imported type
+  initialViewPreset?: CameraViewPreset;
+  children?: React.ReactNode;
 }
 
 // --- メインコンポーネント ---
 export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   mazeData,
-  initialMouseState, // Propとして受け取る初期状態
   width = 800,
   height = 600,
   backgroundColor = '#f0f0f0',
-  showGridHelper = false, // デフォルトは非表示に変更
-  showAxesHelper = false, // デフォルトは非表示に変更
+  showGridHelper = false,
+  showAxesHelper = false,
   initialViewPreset = 'angle',
+  children,
 }) => {
 
-  // 迷路データがない場合は何も表示しないか、ローディング表示
+  // 迷路データがない場合は早期リターン
   if (!mazeData) {
     return <div style={{ width, height, backgroundColor: '#dddddd', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Maze Data...</div>;
   }
+  // ここから下では mazeData は undefined ではない
 
   const mazeSize = mazeData.size;
 
-  // デフォルトのマウス状態を useMemo でメモ化
-  const defaultMouseState = useMemo<MouseState>(() => {
-    // スタート地点のセル座標を物理座標に変換
-    const startPhysicalPos = cellToPhysical(mazeData.start.x, mazeData.start.y, mazeSize);
-    return {
-      position: startPhysicalPos,
-      angle: Math.PI / 2, // 北向き (+Y方向)
-    };
-  // mazeData.start と mazeSize に依存
-  }, [mazeData.start.x, mazeData.start.y, mazeSize]);
-
-  // useStateの初期値は initialMouseState があればそれ、なければメモ化した defaultMouseState を使用
-  const [currentMouseState, setCurrentMouseState] = useState<MouseState>(
-     initialMouseState ?? defaultMouseState
-  );
-
-  // Propsの変更を監視して内部状態を更新
-  useEffect(() => {
-    // initialMouseState が変更された場合、または mazeData が変更されて defaultMouseState が更新された場合に
-    // currentMouseState を更新する
-    // initialMouseState が指定されていればそれを優先、なければ defaultMouseState を使う
-    setCurrentMouseState(initialMouseState ?? defaultMouseState);
-  }, [initialMouseState, defaultMouseState]); // 依存配列を修正
+  // --- マウス状態管理の削除 (コメントも整理) ---
 
   const mazePhysicalSize = mazeSize * CELL_SIZE;
-  // グリッドヘルパーと軸ヘルパーの中心を迷路の中心に合わせる
-  // const helperCenterOffset = mazePhysicalSize / 2 - CELL_SIZE / 2; // Z-upでは不要かも
 
-  // カメラプリセットの位置をタプル型にキャスト
   const initialCameraPosition = cameraPresets[initialViewPreset].position as [number, number, number];
 
   return (
-    // CSSクラス名を修正
     <div style={{ width, height }} className="mm-visualizer">
       <Canvas
-         shadows // 影を有効化 (必要に応じて)
-         // Z-up設定を追加
-         camera={{ fov: 50, near: 0.1, far: 1000, position: initialCameraPosition, up: [0, 0, 1] }} // 初期カメラ位置も設定
+         shadows
+         camera={{ fov: 50, near: 0.1, far: 1000, position: initialCameraPosition, up: [0, 0, 1] }}
          style={{ background: backgroundColor }}
-         // onCreated={({ gl }) => gl.setClearColor(backgroundColor)} // 背景色設定の別方法
       >
-        {/* ライト設定 (Z-upに合わせて調整) */}
-        <ambientLight intensity={0.7} /> {/* 環境光を少し強く */}
+        {/* ライト設定 */}
+        <ambientLight intensity={0.7} />
         <directionalLight
-            // positionのYとZを入れ替え
-            position={[mazePhysicalSize * 0.5, mazePhysicalSize * 0.5, mazePhysicalSize]} // 光源の位置を迷路サイズに連動させる
-            intensity={1.0} // 主光源の強度
-            castShadow // 影を生成
-            shadow-mapSize-width={1024} // 影の解像度
+            position={[mazePhysicalSize * 0.5, mazePhysicalSize * 0.5, mazePhysicalSize]}
+            intensity={1.0}
+            castShadow
+            shadow-mapSize-width={1024}
             shadow-mapSize-height={1024}
-            // shadow-camera-* の調整 (Z-upでは通常不要だが、範囲を広げる)
             shadow-camera-far={mazePhysicalSize * 3}
-            shadow-camera-left={-mazePhysicalSize * 1.5} // 範囲を広めに設定
+            shadow-camera-left={-mazePhysicalSize * 1.5}
             shadow-camera-right={mazePhysicalSize * 1.5}
             shadow-camera-top={mazePhysicalSize * 1.5}
             shadow-camera-bottom={-mazePhysicalSize * 1.5}
         />
-        {/* 補助光のpositionも調整 */}
-        <directionalLight position={[-5, -5, -5]} intensity={0.3} /> {/* 補助光 */}
+        <directionalLight position={[-5, -5, -5]} intensity={0.3} />
 
-        {/* 迷路 */}
-        <group position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]}>
-            <Maze mazeData={mazeData} />
+        {/* 迷路 (mazeData は undefined でないことが保証されている) */}
+        {/* Mazeコンポーネントの原点をシーンの原点に合わせる */}
+        <group position={[0, 0, 0]}>
+             <Maze mazeData={mazeData} />
         </group>
 
+        {/* children をレンダリング */}
+        {children}
 
-        {/* マウス */}
-        {/* currentMouseStateは常にMouseState型になるためチェック不要 */}
-        <Mouse mouseState={currentMouseState} mazeSize={mazeSize}/>
-
-        {/* ヘルパー (Z-upに合わせて調整) */}
+        {/* ヘルパー */}
         {showGridHelper && (
-            // Adjust the GridHelper position to align with the maze
             <primitive
                 object={new THREE.GridHelper(mazePhysicalSize, mazeSize, '#888888', '#bbbbbb')}
-                rotation={[Math.PI / 2, 0, 0]} // Ensure the grid is aligned with the X-Y plane
-                position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]} // Center the grid on the maze
+                rotation={[Math.PI / 2, 0, 0]}
+                position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]}
             />
         )}
         {showAxesHelper && (
             <primitive
                 object={new THREE.AxesHelper(mazePhysicalSize * 0.6)}
-                // Zが上になるように回転は不要
-                // position={[0, 0, FLOOR_THICKNESS / 2 + 0.01]} // Z座標を床の上面(0)に修正 (わずかなオフセットは削除)
-                position={[0, 0, 0]} // Z座標を床の上面(0)に修正
+                position={[0, 0, 0]}
             />
         )}
 
