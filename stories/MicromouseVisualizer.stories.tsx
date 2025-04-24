@@ -2,6 +2,8 @@ import React from 'react'; // React のインポートを追加
 import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
 import Mouse from '../src/components/MicromouseVisualizer/Mouse'; // Mouse をインポート
+import CellMarker from '../src/components/MicromouseVisualizer/CellMarker'; // CellMarker をインポート
+import TextLabel from '../src/components/MicromouseVisualizer/TextLabel'; // TextLabel をインポート
 import { MazeData, MouseState } from '../src/types';
 import { CELL_SIZE } from '../src/config/constants';
 
@@ -93,6 +95,8 @@ const meta: Meta<typeof MicromouseVisualizer> = {
     backgroundColor: { control: 'color' },
     showGridHelper: { control: 'boolean' },
     showAxesHelper: { control: 'boolean' },
+    showStartMarker: { control: 'boolean' },
+    showGoalMarkers: { control: 'boolean' },
     initialViewPreset: {
         control: { type: 'select' },
         options: ['top', 'angle', 'side'],
@@ -114,6 +118,8 @@ export const Default16x16: Story = {
     height: 600,
     showGridHelper: true,
     showAxesHelper: true,
+    showStartMarker: true,
+    showGoalMarkers: true,
     initialViewPreset: 'angle',
     backgroundColor: '#e0e0e0',
   },
@@ -194,4 +200,181 @@ export const NoMazeData: Story = {
      render: (args) => (
         <MicromouseVisualizer {...args} />
       ),
+};
+
+// カスタムのCellMarkerを使用した例
+export const WithCustomCellMarkers: Story = {
+  args: {
+    ...Default16x16.args,
+    // スタート/ゴールマーカーを非表示にして、独自のマーカーを追加
+    showStartMarker: false,
+    showGoalMarkers: false,
+  },
+  render: (args) => (
+    <MicromouseVisualizer {...args}>
+      <Mouse mouseState={sampleInitialMouseState16} />
+      {/* カスタムのスタートマーカー (円形) */}
+      <CellMarker 
+        cell={{ x: 0, y: 0 }}
+        color="#00ff00"
+        opacity={0.9}
+        scale={0.7}
+        type="circle"
+      />
+      {/* カスタムのゴールマーカー (ひし形) */}
+      {sampleMazeData16.goal.map((goalCell, index) => (
+        <CellMarker
+          key={`custom-goal-${index}`}
+          cell={goalCell}
+          color="#ff00ff"
+          opacity={0.8}
+          scale={0.7}
+          type="diamond"
+          height={0.005} // 床から少し浮かせる
+        />
+      ))}
+      {/* パスを示すマーカー */}
+      <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.5} type="square" />
+      <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+      <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+      <CellMarker cell={{ x: 3, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+      <CellMarker cell={{ x: 3, y: 2 }} color="#0088ff" opacity={0.5} type="square" />
+      <CellMarker cell={{ x: 3, y: 3 }} color="#0088ff" opacity={0.5} type="square" />
+    </MicromouseVisualizer>
+  ),
+};
+
+// TextLabelを使用した例を追加
+export const WithTextLabels: Story = {
+  args: {
+    ...Default16x16.args,
+  },
+  render: (args) => (
+    <MicromouseVisualizer {...args}>
+      <Mouse mouseState={sampleInitialMouseState16} />
+      
+      {/* セル番号を表示 */}
+      <TextLabel 
+        cell={{ x: 0, y: 0 }} 
+        text="Start" 
+        color="#ffffff"
+        backgroundColor="#008800" 
+        fontSize={0.07}
+        height={0.01}
+      />
+      
+      {/* ゴールにラベルを表示 */}
+      {sampleMazeData16.goal.map((goalCell, index) => (
+        <TextLabel
+          key={`goal-label-${index}`}
+          cell={goalCell}
+          text="Goal"
+          color="#ffffff"
+          backgroundColor="#880000"
+          fontSize={0.07}
+          height={0.01}
+        />
+      ))}
+      
+      {/* 距離情報を表示する例 */}
+      <TextLabel cell={{ x: 1, y: 0 }} text="14" color="#aaaaff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 1, y: 1 }} text="13" color="#aaaaff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 2, y: 1 }} text="12" color="#aaaaff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 3, y: 1 }} text="11" color="#aaaaff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 3, y: 2 }} text="10" color="#aaaaff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 3, y: 3 }} text="9" color="#aaaaff" fontSize={0.06} height={0.005} />
+      
+      {/* 斜めに配置した文字の例 */}
+      <TextLabel 
+        cell={{ x: 5, y: 5 }} 
+        text="↑" 
+        color="#ffff00" 
+        fontSize={0.1}
+        height={0.02}
+        rotation={[0, 0, Math.PI / 2]} 
+      />
+      <TextLabel 
+        cell={{ x: 6, y: 5 }} 
+        text="→" 
+        color="#ffff00" 
+        fontSize={0.1}
+        height={0.02}
+      />
+      <TextLabel 
+        cell={{ x: 5, y: 6 }} 
+        text="←" 
+        color="#ffff00" 
+        fontSize={0.1}
+        height={0.02}
+      />
+      <TextLabel 
+        cell={{ x: 6, y: 6 }} 
+        text="↓" 
+        color="#ffff00" 
+        fontSize={0.1}
+        height={0.02}
+        rotation={[0, 0, -Math.PI / 2]} 
+      />
+    </MicromouseVisualizer>
+  ),
+};
+
+// テキストラベルとマーカーを組み合わせた例
+export const WithLabelsAndMarkers: Story = {
+  args: {
+    ...Default16x16.args,
+    showStartMarker: false,
+    showGoalMarkers: false,
+  },
+  render: (args) => (
+    <MicromouseVisualizer {...args}>
+      <Mouse mouseState={sampleInitialMouseState16} />
+      
+      {/* スタート位置のマーカーとラベル */}
+      <CellMarker 
+        cell={{ x: 0, y: 0 }}
+        color="#00aa00"
+        opacity={0.7}
+        scale={0.8}
+        type="square"
+      />
+      <TextLabel 
+        cell={{ x: 0, y: 0 }} 
+        text="S" 
+        color="#ffffff" 
+        fontSize={0.08}
+        height={0.01}
+      />
+      
+      {/* ゴール位置のマーカーとラベル */}
+      {sampleMazeData16.goal.map((goalCell, index) => (
+        <React.Fragment key={`goal-${index}`}>
+          <CellMarker
+            cell={goalCell}
+            color="#aa0000"
+            opacity={0.7}
+            scale={0.8}
+            type="square"
+          />
+          <TextLabel 
+            cell={goalCell} 
+            text="G" 
+            color="#ffffff" 
+            fontSize={0.08}
+            height={0.01}
+          />
+        </React.Fragment>
+      ))}
+      
+      {/* 探索済みセルを示す例 */}
+      <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.3} type="square" />
+      <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
+      <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
+      
+      {/* 各セルの訪問回数を示す例 */}
+      <TextLabel cell={{ x: 1, y: 0 }} text="2" color="#ffffff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 1, y: 1 }} text="3" color="#ffffff" fontSize={0.06} height={0.005} />
+      <TextLabel cell={{ x: 2, y: 1 }} text="1" color="#ffffff" fontSize={0.06} height={0.005} />
+    </MicromouseVisualizer>
+  ),
 };

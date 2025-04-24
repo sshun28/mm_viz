@@ -13,7 +13,7 @@ import {
 
 // 迷路描画コンポーネント
 const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
-  const { size, walls, start, goal } = mazeData;
+  const { size, walls } = mazeData;
   const mazeWidth = size * CELL_SIZE;
   const mazeDepth = size * CELL_SIZE; // Y方向のサイズだが変数名はDepthのまま
   
@@ -86,29 +86,14 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
     }
   }
 
-  // スタート地点マーカー (X-Y平面に配置)
-  const startMarker = (
-    <mesh position={[start.x * CELL_SIZE + CELL_SIZE / 2, start.y * CELL_SIZE + CELL_SIZE / 2, FLOOR_THICKNESS / 2 + 0.001]} rotation={[0, 0, 0]}>
-      <planeGeometry args={[CELL_SIZE * 0.8, CELL_SIZE * 0.8]} />
-      <meshStandardMaterial color="green" side={THREE.DoubleSide} transparent opacity={0.7}/>
-    </mesh>
-  );
-
-  // ゴール地点マーカー (X-Y平面に配置)
-  const goalMarkers = goal.map((g, index) => (
-    <mesh key={`goal-${index}`} position={[g.x * CELL_SIZE + CELL_SIZE / 2, g.y * CELL_SIZE + CELL_SIZE / 2, FLOOR_THICKNESS / 2 + 0.001]} rotation={[0, 0, 0]}>
-       <planeGeometry args={[CELL_SIZE * 0.8, CELL_SIZE * 0.8]} />
-       <meshStandardMaterial color="red" side={THREE.DoubleSide} transparent opacity={0.7}/>
-    </mesh>
-  ));
+  // スタート/ゴールマーカーは削除
+  // 外部コンポーネントで実装するように変更
 
   return (
     <group>
       {floor}
       {wallElements}
       {pillarElements}
-      {startMarker}
-      {goalMarkers}
     </group>
   );
 };

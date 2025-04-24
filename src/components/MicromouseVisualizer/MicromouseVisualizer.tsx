@@ -7,7 +7,7 @@ import { MazeData, CameraViewPreset } from '../../types'; // Import types
 import { CELL_SIZE, /* FLOOR_THICKNESS, */ cameraPresets } from '../../config/constants'; // FLOOR_THICKNESS は未使用なのでコメントアウト
 import CameraController from './CameraController'; // Import extracted component
 import Maze from './Maze'; // Import extracted component
-// Mouse のインポートを削除
+import CellMarker from './CellMarker'; // Import CellMarker component
 
 // --- Props定義 ---
 interface MicromouseVisualizerProps {
@@ -17,6 +17,8 @@ interface MicromouseVisualizerProps {
   backgroundColor?: string;
   showGridHelper?: boolean;
   showAxesHelper?: boolean;
+  showStartMarker?: boolean;
+  showGoalMarkers?: boolean;
   initialViewPreset?: CameraViewPreset;
   children?: React.ReactNode;
 }
@@ -29,6 +31,8 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   backgroundColor = '#f0f0f0',
   showGridHelper = false,
   showAxesHelper = false,
+  showStartMarker = true,
+  showGoalMarkers = true,
   initialViewPreset = 'angle',
   children,
 }) => {
@@ -41,7 +45,44 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
 
   const mazeSize = mazeData.size;
 
-  // --- マウス状態管理の削除 (コメントも整理) ---
+  // スタートとゴールのマーカーをメモ化
+  const startAndGoalMarkers = useMemo(() => {
+    if (!mazeData) return null;
+    
+    const markers = [];
+    
+    // スタートマーカー
+    if (showStartMarker && mazeData.start) {
+      markers.push(
+        <CellMarker 
+          key="start-marker"
+          cell={mazeData.start}
+          color="green"
+          opacity={0.7}
+          scale={0.8}
+          type="square"
+        />
+      );
+    }
+    
+    // ゴールマーカー
+    if (showGoalMarkers && mazeData.goal && mazeData.goal.length > 0) {
+      mazeData.goal.forEach((goalCell, index) => {
+        markers.push(
+          <CellMarker
+            key={`goal-marker-${index}`}
+            cell={goalCell}
+            color="red"
+            opacity={0.7}
+            scale={0.8}
+            type="square"
+          />
+        );
+      });
+    }
+    
+    return markers;
+  }, [mazeData, showStartMarker, showGoalMarkers]);
 
   const mazePhysicalSize = mazeSize * CELL_SIZE;
 
@@ -75,6 +116,9 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
         <group position={[0, 0, 0]}>
              <Maze mazeData={mazeData} />
         </group>
+
+        {/* スタート/ゴールマーカー */}
+        {startAndGoalMarkers}
 
         {/* children をレンダリング */}
         {children}
