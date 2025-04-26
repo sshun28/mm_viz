@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { useThree } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import React, { useMemo } from 'react';
+import { useFBX, Instances, Instance } from '@react-three/drei';
 import * as THREE from 'three';
 import { PILLAR_COLOR } from '../../config/constants';
 
@@ -10,138 +9,101 @@ export interface PillarProps {
     rotation?: [number, number, number]; // 柱の回転角（オプション）
 }
 
-/**
- * FBXファイルから柱のモデルを読み込むコンポーネント
- */
+// 単一のPillarの描画用コンポーネント - 従来のコード互換性のために維持
 const Pillar: React.FC<PillarProps> = ({
     position,
     rotation = [0, 0, 0],
 }) => {
-    // FBXモデルを読み込む
-    const fbx = useFBX('/3d_models/pillar.fbx');
-    const pillarRef = useRef<THREE.Group>(null);
-    const { scene } = useThree();
-
-    // モデルのマテリアルを設定
-    useEffect(() => {
-        if (fbx) {
-            // ディープクローンを作成して完全なコピーを確保
-            const modelClone = fbx.clone(true);
-
-            // FBXの座標系（Yが上）をThree.jsの座標系（Zが上）に変換するための回転
-            modelClone.rotation.x = Math.PI / 2;
-            modelClone.scale.set(0.001, 0.001, 0.001); // FBXのスケールを調整
-            
-            // デフォルトのマテリアルを準備（必要に応じて使用）
-            const defaultMaterial = new THREE.MeshStandardMaterial({
-                color: PILLAR_COLOR,
-                roughness: 0.5,
-                metalness: 0.3,
-            });
-
-            // モデル内のすべてのメッシュを処理
-            modelClone.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    // 1. メッシュのマテリアルを確認
-                    if (!child.material) {
-                        // マテリアルがない場合はデフォルトマテリアルを適用
-                        child.material = defaultMaterial.clone();
-                    } 
-                    // 2. マテリアル配列の場合
-                    else if (Array.isArray(child.material)) {
-                        // 無効なマテリアルがあれば置き換え
-                        for (let i = 0; i < child.material.length; i++) {
-                            if (!child.material[i]) {
-                                child.material[i] = defaultMaterial.clone();
-                            } else {
-                                // 既存マテリアルの更新フラグを設定
-                                child.material[i].needsUpdate = true;
-                                const m = child.material[i]
-                            }
-                        }
-                    } 
-                    // 3. 単一マテリアルの場合
-                    else {
-                        // 既存マテリアルの更新フラグを設定
-                        child.material.needsUpdate = true;
-                    }
-
-                    // シャドウの設定
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    
-                    // ジオメトリが存在すればバッファを更新
-                    if (child.geometry) {
-                        // バッファを更新
-                        child.geometry.computeBoundingSphere();
-                        child.geometry.computeBoundingBox();
-                        child.geometry.computeVertexNormals();
-                    }
-                }
-            });
-
-            // 既存の子要素をクリアしてクローンを追加
-            if (pillarRef.current) {
-                while (pillarRef.current.children.length > 0) {
-                    pillarRef.current.remove(pillarRef.current.children[0]);
-                }
-                pillarRef.current.add(modelClone);
-            }
-        }
-    }, [fbx]);
-
-    return (
-        <group
-            ref={pillarRef}
-            position={position}
-            rotation={rotation}
-        />
-    );
+    // 単一インスタンスでは、柱のインスタンス化はPillarInstancesコンポーネントで行われるため、
+    // 空のグループを返します。これはMazeコンポーネントからの互換性のために残しています。
+    return null;
 };
 
-/**
- * FBXモデルの詳細情報を収集するヘルパー関数
- */
-function getFBXDetails(model: THREE.Group): any {
-    const details = {
-        name: model.name,
-        type: model.type,
-        childrenCount: model.children.length,
-        materials: [] as any[],
-        meshes: [] as any[]
-    };
+// インスタンス化された柱のプロパティ
+export interface PillarInstancesProps {
+    positions: [number, number, number][]; // 複数の柱の位置
+}
 
-    // モデル内のマテリアルとメッシュに関する情報を収集
-    model.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-            const meshInfo = {
-                name: child.name,
-                materialType: 'なし'
-            };
-            
-            if (child.material) {
+/**
+ * 複数の柱をインスタンス化して効率的に描画するコンポーネント
+ * @react-three/dreiのInstances/Instanceを使用してさらに簡潔に実装
+ */
+export const PillarInstances: React.FC<PillarInstancesProps> = ({ positions }) => {
+    // FBXモデルを読み込む
+    const fbx = useFBX('/3d_models/pillar.fbx');
+    
+    // FBXモデルからジオメトリとマテリアルの配列を抽出
+    const meshes = useMemo(() => {
+        if (!fbx) return [];
+        
+        const result: { geometry: THREE.BufferGeometry; material: THREE.Material }[] = [];
+        
+        // FBXの座標系をThree.jsの座標系に変換するための回転を適用したクローンを作成
+        const modelClone = fbx.clone(true);
+        
+        // デフォルトのマテリアルを準備
+        const defaultMaterial = new THREE.MeshStandardMaterial({
+            color: PILLAR_COLOR,
+            roughness: 0.5,
+            metalness: 0.3,
+        });
+        
+        // FBXモデル内のすべてのメッシュを処理
+        modelClone.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.geometry) {
+                // ジオメトリの準備
+                const geometry = child.geometry.clone();
+                geometry.computeBoundingSphere();
+                geometry.computeBoundingBox();
+                geometry.computeVertexNormals();
+                
+                // マテリアルの準備
+                // もしマテリアルが配列の場合は、各マテリアルに対して別々のインスタンスを作成する必要がある
                 if (Array.isArray(child.material)) {
-                    meshInfo.materialType = `配列（${child.material.length}個）`;
-                    details.materials.push(...child.material.map(mat => ({
-                        name: mat ? mat.name : 'なし',
-                        type: mat ? mat.type : 'なし',
-                        color: mat && 'color' in mat ? mat.color : 'なし'
-                    })));
-                } else {
-                    meshInfo.materialType = child.material.type;
-                    details.materials.push({
-                        name: child.material.name,
-                        type: child.material.type,
-                        color: 'color' in child.material ? child.material.color : 'なし'
+                    child.material.forEach((mat, index) => {
+                        // 各サブマテリアルに対してジオメトリをクローンして登録
+                        if (mat) {
+                            result.push({ 
+                                geometry: geometry.clone(), 
+                                material: mat.clone() 
+                            });
+                        }
                     });
+                } else {
+                    // 単一マテリアルの場合
+                    const material = child.material ? child.material.clone() : defaultMaterial.clone();
+                    result.push({ geometry, material });
                 }
             }
-            
-            details.meshes.push(meshInfo);
-        }
-    });
-
-    return details;
-}
+        });
+        
+        return result;
+    }, [fbx]);
+    
+    return (
+        <>
+            {meshes.map((mesh, meshIndex) => (
+                <Instances 
+                    key={`pillar-instances-${meshIndex}`}
+                    geometry={mesh.geometry}
+                    material={mesh.material}
+                    limit={positions.length} // インスタンスの最大数
+                    range={positions.length} // 実際に表示するインスタンス数
+                    castShadow
+                    receiveShadow
+                >
+                    {positions.map((position, i) => (
+                        <Instance 
+                            key={`pillar-instance-${i}`}
+                            position={position}
+                            scale={[0.01, 0.01, 0.01]} // スケールを調整
+                            rotation={[Math.PI/2, 0, 0]} // 回転を適用
+                        />
+                    ))}
+                </Instances>
+            ))}
+        </>
+    );
+};
 
 export default Pillar;

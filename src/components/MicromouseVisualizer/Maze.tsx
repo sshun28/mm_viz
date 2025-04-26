@@ -6,7 +6,7 @@ import {
     FLOOR_THICKNESS, 
 } from '../../config/constants';
 import Wall from './Wall';
-import Pillar from './Pillar';
+import Pillar, { PillarInstances } from './Pillar';
 
 // 迷路描画コンポーネント
 const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
@@ -68,20 +68,15 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
     }
   }
 
-  // 柱 (Pillars)
-  const pillarElements: React.ReactNode[] = [];
+  // 柱の位置情報を収集
+  const pillarPositions: [number, number, number][] = [];
   // 柱は (size + 1) x (size + 1) 個配置される
   for (let y = 0; y < size + 1; y++) {
     for (let x = 0; x < size + 1; x++) {
       // 柱の中心座標を計算（オフセットなし）
       const posX = x * CELL_SIZE; // X座標（グリッドライン上）
       const posY = y * CELL_SIZE; // Y座標（グリッドライン上）
-      pillarElements.push(
-        <Pillar 
-          key={`pillar-${y}-${x}`} 
-          position={[posX, posY, 0]}
-        />
-      );
+      pillarPositions.push([posX, posY, 0]);
     }
   }
 
@@ -89,7 +84,7 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
     <group>
       {floor}
       {wallElements}
-      {pillarElements}
+      <PillarInstances positions={pillarPositions} />
     </group>
   );
 };
