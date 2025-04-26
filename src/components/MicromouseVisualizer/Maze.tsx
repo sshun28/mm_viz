@@ -14,10 +14,17 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   const mazeWidth = size * CELL_SIZE;
   const mazeDepth = size * CELL_SIZE; // Y方向のサイズだが変数名はDepthのまま
 
-  // 床 (X-Y平面に配置) - 迷路の中心に配置
+  // 床 (X-Y平面に配置) - 迷路全体に加えて全方向に1マスずつ大きくする
+  const extendedMazeWidth = (size + 2) * CELL_SIZE; // 横方向に両側1マスずつ拡張
+  const extendedMazeDepth = (size + 2) * CELL_SIZE; // 縦方向に両側1マスずつ拡張
+  
+  // 床の位置を調整 - 原点が左下のまま床全体が広がるように
+  const floorPosX = mazeWidth / 2; // 元の迷路の中心X座標
+  const floorPosY = mazeDepth / 2; // 元の迷路の中心Y座標
+  
   const floor = (
-    <mesh position={[mazeWidth / 2, mazeDepth / 2, -FLOOR_THICKNESS / 2]} rotation={[0, 0, 0]}>
-      <boxGeometry args={[mazeWidth, mazeDepth, FLOOR_THICKNESS]} />
+    <mesh position={[floorPosX, floorPosY, -FLOOR_THICKNESS / 2]} rotation={[0, 0, 0]}>
+      <boxGeometry args={[extendedMazeWidth, extendedMazeDepth, FLOOR_THICKNESS]} />
       <meshStandardMaterial color="#333333" side={THREE.DoubleSide} />
     </mesh>
   );
