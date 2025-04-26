@@ -75,26 +75,35 @@ const CameraController: React.FC<{
   const enableOrthographicCamera = useCallback(() => {
     if (isOrtho) return; // 既に直交投影モードの場合は何もしない
     
-    // 既存のカメラの位置と向きを保持
-    const position = camera.position.clone();
-    const quaternion = camera.quaternion.clone();
-    const up = camera.up.clone();
-    
     // 直交投影カメラの作成
     const orthoCamera = new THREE.OrthographicCamera();
     updateOrthographicCamera(orthoCamera);
     
-    // 位置と向きを設定
-    orthoCamera.position.copy(position);
-    orthoCamera.quaternion.copy(quaternion);
-    orthoCamera.up.copy(up);
+    // 直交投影カメラは常に上面から見る位置に固定
+    const mazeCenterOffset = mazeSize * CELL_SIZE / 2;
+    orthoCamera.position.set(mazeCenterOffset, mazeCenterOffset, mazeSize * CELL_SIZE * 2);
+    
+    // 迷路の中心をターゲットとする
+    const target = new THREE.Vector3(mazeCenterOffset, mazeCenterOffset, 0);
+    orthoCamera.lookAt(target);
     
     // react-three-fiberのsetメソッドを使って新しいカメラを設定
     set({ camera: orthoCamera });
     
+    // コントロールの更新
+    const currentControls = controlsRef.current || controlsFromHook;
+    if (currentControls) {
+      if ('target' in currentControls && typeof (currentControls as any).target?.copy === 'function') {
+        (currentControls as any).target.copy(target);
+      }
+      if (typeof (currentControls as any).update === 'function') {
+        (currentControls as any).update();
+      }
+    }
+    
     // 状態を更新
     setIsOrtho(true);
-  }, [isOrtho, camera, set, updateOrthographicCamera]);
+  }, [isOrtho, mazeSize, set, updateOrthographicCamera, controlsFromHook]);
 
   // 透視投影カメラに切り替える関数
   const enablePerspectiveCamera = useCallback(() => {
@@ -144,9 +153,9 @@ const CameraController: React.FC<{
       adjustedPosition = new THREE.Vector3(mazeCenterOffset, -mazeSize * CELL_SIZE * 1.5, mazeCenterOffset); // 横から
       if (isOrtho) enablePerspectiveCamera();
     } else if (presetKey === 'ortho') {
-      // 直交投影モードでは真上からの視点
-      adjustedPosition = new THREE.Vector3(mazeCenterOffset, mazeCenterOffset, mazeSize * CELL_SIZE * 2);
-      if (!isOrtho) enableOrthographicCamera();
+      // 直交投影モード
+      enableOrthographicCamera();
+      return; // enableOrthographicCamera内でカメラ位置とターゲットを設定するため、ここで終了
     } else {
       // angleビューなど、その他のプリセット
       adjustedPosition = new THREE.Vector3(...preset.position)
@@ -244,6 +253,7 @@ const CameraController: React.FC<{
       ref={controlsRef} 
       onChange={handleControlChange}
       makeDefault
+      enableRotate={!isOrtho} // 直交投影カメラの場合、回転を無効化
     />
   );
 };
