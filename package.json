@@ -16,8 +16,10 @@
     "@react-three/fiber": "^9.1.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/stats.js": "^0.17.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "stats.js": "^0.17.0",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
