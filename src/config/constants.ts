@@ -12,4 +12,5 @@ export const cameraPresets = {
   top: { position: [0, 0, 10], target: [0, 0, 0] }, // 真上から (Z軸プラス方向から)
   angle: { position: [5, -5, 5], target: [0, 0, 0] }, // 斜め上から (Y軸マイナス方向から見る)
   side: { position: [5, 0, 1], target: [0, 0, 0] }, // 横から (X軸プラス方向から)
+  ortho: { position: [0, 0, 10], target: [0, 0, 0] }, // 直交カメラ用 (真上から)
 };

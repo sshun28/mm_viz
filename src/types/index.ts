@@ -24,4 +24,4 @@ export interface TrajectoryElement {
 export type TrajectoryProfile = Map<number, TrajectoryElement> // 時刻をキー、値をその時刻での位置・角度としたプロファイル
 
 // カメラプリセットのキーの型
-export type CameraViewPreset = 'top' | 'angle' | 'side';
+export type CameraViewPreset = 'top' | 'angle' | 'side' | 'ortho';
