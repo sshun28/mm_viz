@@ -27,22 +27,39 @@ const Wall: React.FC<WallProps> = ({
   // モデルのマテリアルを設定
   useEffect(() => {
     if (fbx) {
-      // クローンを作成してマテリアルを適用
+      // クローンを作成
       const modelClone = fbx.clone();
       
       // FBXの座標系（Yが上）をThree.jsの座標系（Zが上）に変換するための回転
       modelClone.rotation.x = Math.PI / 2;
       modelClone.scale.set(0.001, 0.001, 0.001); // FBXのスケールを調整
       
-      // すべてのメッシュにマテリアルを適用
+      // すべてのメッシュにFBXから読み出したマテリアルを適用
       modelClone.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-          // マテリアルの設定
-          child.material = new THREE.MeshStandardMaterial({
-            color: '#ffffff',  // 白色
-            roughness: 0.5,    // 表面の粗さ
-            metalness: 0.2,    // 金属感
-          });
+          // マテリアルの確認とシャドウ設定
+          if (child.material) {
+            // マテリアルが配列の場合
+            if (Array.isArray(child.material)) {
+              // 各マテリアルに対してシャドウ設定を適用
+              child.material.forEach(mat => {
+                if (mat) {
+                  // シャドウ設定
+                  mat.needsUpdate = true;
+                }
+              });
+            } else {
+              // 単一マテリアルの場合
+              child.material.needsUpdate = true;
+            }
+          } else {
+            // マテリアルがない場合はデフォルトマテリアルを作成
+            child.material = new THREE.MeshStandardMaterial({
+              color: '#ffffff',  // 白色
+              roughness: 0.5,    // 表面の粗さ
+              metalness: 0.2,    // 金属感
+            });
+          }
           
           // シャドウの設定
           child.castShadow = true;
