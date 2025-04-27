@@ -277,8 +277,6 @@ interface MicromouseVisualizerProps {
   backgroundColor?: string;
   showGridHelper?: boolean;
   showAxesHelper?: boolean;
-  showStartMarker?: boolean;
-  showGoalMarkers?: boolean;
   showPerformanceStats?: boolean; // パフォーマンス表示のオプション
   showDiagonalGrid?: boolean; // 斜めグリッドを表示するかどうか
   initialViewPreset?: CameraViewPreset;
@@ -290,11 +288,9 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   mazeData,
   width = 800,
   height = 600,
-  backgroundColor = '#f0f0f0',
+  backgroundColor = '#181818',
   showGridHelper = false,
   showAxesHelper = false,
-  showStartMarker = true,
-  showGoalMarkers = true,
   showPerformanceStats = false, // デフォルトはOFF
   showDiagonalGrid = true, // デフォルトは表示する
   initialViewPreset = 'angle',
@@ -303,50 +299,11 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
 
   // 迷路データがない場合は早期リターン
   if (!mazeData) {
-    return <div style={{ width, height, backgroundColor: '#dddddd', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Maze Data...</div>;
+    return <div style={{ width, height, backgroundColor: '#181818', display: 'flex', justifyContent: 'center', alignItems: 'center', color:"#CCCCCC" }}>Loading Maze Data...</div>;
   }
   // ここから下では mazeData は undefined ではない
 
   const mazeSize = mazeData.size;
-
-  // スタートとゴールのマーカーをメモ化
-  const startAndGoalMarkers = useMemo(() => {
-    if (!mazeData) return null;
-
-    const markers = [];
-
-    // スタートマーカー
-    if (showStartMarker && mazeData.start) {
-      markers.push(
-        <CellMarker
-          key="start-marker"
-          cell={mazeData.start}
-          color="green"
-          opacity={0.7}
-          scale={0.8}
-          type="square"
-        />
-      );
-    }
-
-    // ゴールマーカー
-    if (showGoalMarkers && mazeData.goal && mazeData.goal.length > 0) {
-      mazeData.goal.forEach((goalCell, index) => {
-        markers.push(
-          <CellMarker
-            key={`goal-marker-${index}`}
-            cell={goalCell}
-            color="red"
-            opacity={0.7}
-            scale={0.8}
-            type="square"
-          />
-        );
-      });
-    }
-
-    return markers;
-  }, [mazeData, showStartMarker, showGoalMarkers]);
 
   const mazePhysicalSize = mazeSize * CELL_SIZE;
 
@@ -381,9 +338,6 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
           <Maze mazeData={mazeData} />
         </group>
 
-        {/* スタート/ゴールマーカー */}
-        {startAndGoalMarkers}
-
         {/* children をレンダリング */}
         {children}
 
@@ -398,15 +352,6 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
             diagonalColor="#aaaaaa"
           />
         )}
-
-        {/* 従来のThree.jsグリッドヘルパー（削除）*/}
-        {/* showGridHelper && (
-          <primitive
-            object={new THREE.GridHelper(mazePhysicalSize, mazeSize, '#888888', '#bbbbbb')}
-            rotation={[Math.PI / 2, 0, 0]}
-            position={[mazePhysicalSize / 2, mazePhysicalSize / 2, 0]}
-          />
-        ) */}
 
         {showAxesHelper && (
           <primitive

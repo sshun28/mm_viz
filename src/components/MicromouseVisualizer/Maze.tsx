@@ -1,12 +1,12 @@
 import React from 'react';
 import * as THREE from 'three';
 import { MazeData } from '../../types';
-import { 
-    CELL_SIZE, 
-    FLOOR_THICKNESS, 
+import {
+  CELL_SIZE,
+  FLOOR_THICKNESS,
 } from '../../config/constants';
-import Wall from './Wall';
-import Pillar, { PillarInstances } from './Pillar';
+import Wall, { WallInstances } from './Wall';
+import { PillarInstances } from './Pillar';
 
 // 迷路描画コンポーネント
 const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
@@ -17,20 +17,21 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   // 床 (X-Y平面に配置) - 迷路全体に加えて全方向に1マスずつ大きくする
   const extendedMazeWidth = (size + 2) * CELL_SIZE; // 横方向に両側1マスずつ拡張
   const extendedMazeDepth = (size + 2) * CELL_SIZE; // 縦方向に両側1マスずつ拡張
-  
+
   // 床の位置を調整 - 原点が左下のまま床全体が広がるように
   const floorPosX = mazeWidth / 2; // 元の迷路の中心X座標
   const floorPosY = mazeDepth / 2; // 元の迷路の中心Y座標
-  
+
   const floor = (
     <mesh position={[floorPosX, floorPosY, -FLOOR_THICKNESS / 2]} rotation={[0, 0, 0]}>
       <boxGeometry args={[extendedMazeWidth, extendedMazeDepth, FLOOR_THICKNESS]} />
-      <meshStandardMaterial color="#333333" side={THREE.DoubleSide} />
+      <meshStandardMaterial color="#484848" side={THREE.DoubleSide} />
     </mesh>
   );
 
-  // 壁
-  const wallElements: React.ReactNode[] = [];
+  // 壁の情報を収集
+  const wallConfigs = [];
+
   // 垂直壁 (vwall[y][x] はマス(x,y)の左の壁 = X軸に平行な壁)
   for (let y = 0; y < size; y++) {
     // xは0からsizeまで（size+1列）
@@ -39,16 +40,15 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
         // 壁の中心座標を計算（オフセットなし）
         const posX = x * CELL_SIZE; // X座標（グリッドライン上）
         const posY = y * CELL_SIZE + CELL_SIZE / 2; // Y座標（セルの中心）
-        wallElements.push(
-          <Wall 
-            key={`vwall-${y}-${x}`} 
-            position={[posX, posY, 0]}
-            rotation={[0, 0, Math.PI / 2]} // 垂直壁は90度回転
-          />
-        );
+
+        wallConfigs.push({
+          position: [posX, posY, 0] as [number, number, number],
+          rotation: [0, Math.PI / 2, 0] as [number, number, number], // 垂直壁は90度回転
+        });
       }
     }
   }
+
   // 水平壁 (hwall[y][x] はマス(x,y)の上の壁 = Y軸に平行な壁)
   // yは0からsizeまで（size+1行）
   for (let y = 0; y < size + 1; y++) {
@@ -57,13 +57,11 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
         // 壁の中心座標を計算（オフセットなし）
         const posX = x * CELL_SIZE + CELL_SIZE / 2; // X座標（セルの中心）
         const posY = y * CELL_SIZE; // Y座標（グリッドライン上）
-        wallElements.push(
-          <Wall 
-            key={`hwall-${y}-${x}`} 
-            position={[posX, posY, 0]}
-            rotation={[0, 0, 0]} // 水平壁は回転なし
-          />
-        );
+
+        wallConfigs.push({
+          position: [posX, posY, 0] as [number, number, number],
+          rotation: [0, 0, 0] as [number, number, number], // 水平壁は回転なし
+        });
       }
     }
   }
@@ -83,7 +81,7 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   return (
     <group>
       {floor}
-      {wallElements}
+      <WallInstances walls={wallConfigs} />
       <PillarInstances positions={pillarPositions} />
     </group>
   );

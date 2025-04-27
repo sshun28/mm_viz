@@ -121,7 +121,6 @@ export const Default16x16: Story = {
     showStartMarker: true,
     showGoalMarkers: true,
     initialViewPreset: 'angle',
-    backgroundColor: '#e0e0e0',
   },
   render: (args) => (
     <MicromouseVisualizer {...args}>

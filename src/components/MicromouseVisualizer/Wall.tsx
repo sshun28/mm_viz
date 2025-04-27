@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useFBX, Instances, Instance } from '@react-three/drei';
 import * as THREE from 'three';
-import { WALL_THICKNESS } from '../../config/constants';
 
 // 壁のプロパティの型定義
 export interface WallProps {
@@ -13,6 +12,7 @@ export interface WallProps {
 
 /**
  * FBXファイルから壁のモデルを読み込むコンポーネント
+ * 単一の壁を描画するための従来のコンポーネント - 互換性のために維持
  */
 const Wall: React.FC<WallProps> = ({ 
   position, 
@@ -84,6 +84,122 @@ const Wall: React.FC<WallProps> = ({
       rotation={rotation}
       scale={scale}
     />
+  );
+};
+
+// インスタンス化された壁のプロパティ
+export interface WallInstancesProps {
+  walls: {
+    position: [number, number, number];
+    rotation?: [number, number, number];
+    scale?: [number, number, number];
+  }[];
+}
+
+/**
+ * 複数の壁をインスタンス化して効率的に描画するコンポーネント
+ * @react-three/dreiのInstances/Instanceを使用
+ */
+export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
+  // FBXモデルを読み込む
+  const fbx = useFBX('/3d_models/wall.fbx');
+  const { scene } = useThree();
+  
+  // モデルの基本的なジオメトリとマテリアルを抽出
+  const { geometries, materials } = useMemo(() => {
+    if (!fbx) return { geometries: [], materials: [] };
+    
+    const extractedGeometries: THREE.BufferGeometry[] = [];
+    const extractedMaterials: THREE.Material[] = [];
+    
+    // デフォルトのマテリアルを準備
+    const defaultMaterial = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.5,
+      metalness: 0.2,
+    });
+    
+    // FBXモデル内のメッシュを処理
+    fbx.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry) {
+        // ジオメトリの準備
+        const geometry = child.geometry.clone();
+        geometry.computeBoundingSphere();
+        geometry.computeBoundingBox();
+        geometry.computeVertexNormals();
+        
+        // マテリアルの準備
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => {
+            if (mat) {
+              const clonedMat = mat.clone();
+              clonedMat.needsUpdate = true;
+              extractedMaterials.push(clonedMat);
+              extractedGeometries.push(geometry.clone());
+            }
+          });
+        } else {
+          const material = child.material 
+            ? child.material.clone() 
+            : defaultMaterial.clone();
+          
+          material.needsUpdate = true;
+          extractedMaterials.push(material);
+          extractedGeometries.push(geometry);
+        }
+      }
+    });
+    
+    return { 
+      geometries: extractedGeometries, 
+      materials: extractedMaterials 
+    };
+  }, [fbx]);
+  
+  // モデルが読み込まれていない場合は早期リターン
+  if (geometries.length === 0 || walls.length === 0) {
+    return null;
+  }
+  
+  return (
+    <>
+      {geometries.map((geometry, index) => (
+        <Instances 
+          key={`wall-instances-${index}`}
+          geometry={geometry}
+          material={materials[index]}
+          limit={walls.length}
+          range={walls.length}
+          castShadow
+          receiveShadow
+        >
+          {walls.map((wall, i) => {
+            // 回転を設定（X軸回りに90度回転を基本とし、wall.rotationの値を適用）
+            let rotX = Math.PI / 2;
+            let rotY = 0;
+            let rotZ = 0;
+            
+            if (wall.rotation) {
+              rotY = wall.rotation[1];
+              rotZ = wall.rotation[2];
+            }
+            
+            // デフォルトのスケール
+            const defaultScale: [number, number, number] = [0.01, 0.01, 0.01];
+            const scaleValue = wall.scale || defaultScale;
+            
+            return (
+              <Instance 
+                key={`wall-instance-${i}`}
+                position={wall.position}
+                rotation={[rotX, rotY, rotZ]}
+                scale={scaleValue}
+              />
+            );
+          })}
+        </Instances>
+      ))}
+    </>
   );
 };
 
