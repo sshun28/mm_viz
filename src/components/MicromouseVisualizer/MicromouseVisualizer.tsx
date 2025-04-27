@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { Line } from '@react-three/drei'; // Lineコンポーネントをインポート
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import './MicromouseVisualizer.css';
@@ -62,69 +63,33 @@ const CustomGrid: React.FC<{
 }) => {
   // グリッドのラインを生成する関数
   const gridLines = useMemo(() => {
-    const lines: JSX.Element[] = [];
     const mazePhysicalSize = mazeSize * cellSize;
     const lineOpacity = 0.4; // グリッド線の透明度
     
-    // 水平方向のライン (CELL_SIZE*(n+0.5)の位置)
+    // すべての線の点を格納する配列
+    const allLines: [number, number, number][] = [];
+    
+    // 水平方向のライン
     for (let i = 0; i < mazeSize; i++) {
-      const positions = [];
       const y = i * cellSize + cellSize / 2; // セルの中心を通るように配置
-      
-      // グリッド線の端点を設定
-      positions.push(0, y, 0.001); // 始点
-      positions.push(mazePhysicalSize, y, 0.001); // 終点
-      
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      
-      lines.push(
-        <line key={`horizontal-${i}`}>
-          <bufferGeometry attach="geometry" {...geometry} />
-          <lineBasicMaterial
-            attach="material"
-            color={horizontalColor}
-            transparent
-            opacity={lineOpacity}
-            linewidth={1}
-          />
-        </line>
-      );
+      // 1本の線につき2点（始点と終点）
+      allLines.push([0, y, 0.001]);
+      allLines.push([mazePhysicalSize, y, 0.001]);
     }
     
-    // 垂直方向のライン (CELL_SIZE*(n+0.5)の位置)
+    // 垂直方向のライン
     for (let i = 0; i < mazeSize; i++) {
-      const positions = [];
       const x = i * cellSize + cellSize / 2; // セルの中心を通るように配置
-      
-      // グリッド線の端点を設定
-      positions.push(x, 0, 0.001); // 始点
-      positions.push(x, mazePhysicalSize, 0.001); // 終点
-      
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      
-      lines.push(
-        <line key={`vertical-${i}`}>
-          <bufferGeometry attach="geometry" {...geometry} />
-          <lineBasicMaterial
-            attach="material"
-            color={verticalColor}
-            transparent
-            opacity={lineOpacity}
-            linewidth={1}
-          />
-        </line>
-      );
+      // 1本の線につき2点（始点と終点）
+      allLines.push([x, 0, 0.001]);
+      allLines.push([x, mazePhysicalSize, 0.001]);
     }
     
     // 斜めのライン
     if (showDiagonalLines) {
-      // 斜め（左下から右上）のライン - 45度に修正
-      // セルの中心を通過する線を配置
+      // 斜め（左下から右上）のライン
       for (let i = -1; i < 2 * mazeSize; i++) {
         // i は対角線のインデックス（-1からスタート）
-        const positions = [];
         
         // 対角線の開始点と終了点を計算
         let startX, startY, endX, endY;
@@ -155,7 +120,6 @@ const CustomGrid: React.FC<{
         endY = startY + diagonal;
         
         // 右下の角に表示される線をスキップする
-        // 1. 下辺からスタートする線で、セルの中心を通過しない場合はスキップ
         if (i >= mazeSize && 
             ((i === 2 * mazeSize - 1) || 
              (startX >= (mazeSize - 1) * cellSize && startY === 0))) {
@@ -167,33 +131,16 @@ const CustomGrid: React.FC<{
           // 四隅のチェック
           if (!(startX === 0 && startY === 0) && 
               !(endX === mazePhysicalSize && endY === mazePhysicalSize)) {
-            // グリッド線の端点を設定
-            positions.push(startX, startY, 0.001); // 始点
-            positions.push(endX, endY, 0.001); // 終点
-            
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            
-            lines.push(
-              <line key={`diagonal1-${i}`}>
-                <bufferGeometry attach="geometry" {...geometry} />
-                <lineBasicMaterial
-                  attach="material"
-                  color={diagonalColor}
-                  transparent
-                  opacity={lineOpacity * 0.8} // 斜め線は少し薄めに
-                  linewidth={1}
-                />
-              </line>
-            );
+            // 線分を追加
+            allLines.push([startX, startY, 0.001]);
+            allLines.push([endX, endY, 0.001]);
           }
         }
       }
       
-      // 斜め（右下から左上）のライン - 壁の中心を通るように修正
+      // 斜め（右下から左上）のライン
       for (let i = -1; i < 2 * mazeSize; i++) {
         // i は対角線のインデックス（-1からスタート）
-        const positions = [];
         
         // 対角線の開始点と終了点を計算
         let startX, startY, endX, endY;
@@ -217,7 +164,6 @@ const CustomGrid: React.FC<{
         // 特殊ケース: i = -1 の対応終点計算
         if (i === -1) {
           // (0, CELL_SIZE*(size-0.5))からの線の終点計算
-          // この線は左上から右下に向かうので、終点のxは正方向、yは負方向
           endX = Math.min(mazePhysicalSize, startY);
           endY = Math.max(0, startY - endX);
         } else {
@@ -234,39 +180,34 @@ const CustomGrid: React.FC<{
         if (startX >= 0 && startY >= 0 && 
             ((i === -1 && endX <= mazePhysicalSize && endY >= 0) || 
              (i !== -1 && endX >= 0 && endY <= mazePhysicalSize))) {
-          // グリッド線の端点を設定
-          positions.push(startX, startY, 0.001); // 始点
-          positions.push(endX, endY, 0.001); // 終点
           
           // 範囲チェック - 迷路の四隅を超える線は描画しない
           if (!(startX === mazePhysicalSize && startY === 0) && 
               !(endX === 0 && endY === mazePhysicalSize) &&
               !(startX === 0 && startY === mazePhysicalSize) && 
               !(endX === mazePhysicalSize && endY === 0)) {
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            
-            lines.push(
-              <line key={`diagonal2-${i}`}>
-                <bufferGeometry attach="geometry" {...geometry} />
-                <lineBasicMaterial
-                  attach="material"
-                  color={diagonalColor}
-                  transparent
-                  opacity={lineOpacity * 0.8} // 斜め線は少し薄めに
-                  linewidth={1}
-                />
-              </line>
-            );
+            // 線分を追加
+            allLines.push([startX, startY, 0.001]);
+            allLines.push([endX, endY, 0.001]);
           }
         }
       }
     }
     
-    return lines;
+    // すべての線を一つのLineコンポーネントで描画
+    return (
+      <Line
+        points={allLines}
+        color={horizontalColor} // すべての線に同じ色を適用
+        opacity={lineOpacity}
+        transparent
+        lineWidth={1}
+        segments={true} // セグメントとして描画
+      />
+    );
   }, [mazeSize, cellSize, horizontalColor, verticalColor, diagonalColor, showDiagonalLines]);
   
-  return <>{gridLines}</>;
+  return gridLines;
 };
 
 // --- Props定義 ---

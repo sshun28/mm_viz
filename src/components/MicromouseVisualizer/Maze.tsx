@@ -23,7 +23,7 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   const floorPosY = mazeDepth / 2; // 元の迷路の中心Y座標
 
   const floor = (
-    <mesh position={[floorPosX, floorPosY, -FLOOR_THICKNESS / 2]} rotation={[0, 0, 0]}>
+    <mesh receiveShadow position={[floorPosX, floorPosY, -FLOOR_THICKNESS / 2]} rotation={[0, 0, 0]}>
       <boxGeometry args={[extendedMazeWidth, extendedMazeDepth, FLOOR_THICKNESS]} />
       <meshStandardMaterial color="#484848" side={THREE.DoubleSide} />
     </mesh>
