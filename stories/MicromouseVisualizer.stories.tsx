@@ -1,11 +1,12 @@
-import React from 'react'; // React のインポートを追加
+import React, { useEffect, useState } from 'react'; // useState と useEffect を追加
 import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
 import Mouse from '../src/components/MicromouseVisualizer/Mouse'; // Mouse をインポート
 import CellMarker from '../src/components/MicromouseVisualizer/CellMarker'; // CellMarker をインポート
 import TextLabel from '../src/components/MicromouseVisualizer/TextLabel'; // TextLabel をインポート
-import { MazeData, MouseState } from '../src/types';
+import { MazeData, MouseState, CameraViewPreset } from '../src/types';
 import { CELL_SIZE } from '../src/config/constants';
+import { loadMazeFromUrl, parseMazeFile } from '../src/utils/mazeLoader'; // 追加: マイクロマウス迷路読み込みユーティリティ
 
 // --- Helper Function ---
 // セル座標を物理座標に変換するヘルパー関数
@@ -60,13 +61,92 @@ const createMazeData = (size: number): MazeData => {
     return { size, walls: { vwall, hwall }, start, goal };
 };
 
+// 迷路ファイルのURL
+const MAZE_FILE_URLS = {
+  japan2023Hef: 'https://raw.githubusercontent.com/micromouseonline/mazefiles/refs/heads/master/halfsize/japan2023hef.txt',
+  // 他の迷路ファイルも必要に応じて追加
+};
 
+// Mazeを動的に読み込むラッパーコンポーネント
+interface DynamicMazeLoaderProps {
+  url: string;
+  children?: React.ReactNode;
+  width?: number;
+  height?: number;
+  backgroundColor?: string;
+  showGridHelper?: boolean;
+  showAxesHelper?: boolean;
+  showPerformanceStats?: boolean; // パフォーマンス表示のオプション
+  showDiagonalGrid?: boolean; // 斜めグリッドを表示するかどうか
+  initialViewPreset?: CameraViewPreset;
+}
+
+const DynamicMazeLoader: React.FC<DynamicMazeLoaderProps> = ({
+  url,
+  children,
+  ...props
+}) => {
+  const [mazeData, setMazeData] = useState<MazeData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const loadMaze = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await loadMazeFromUrl(url);
+        setMazeData(data);
+      } catch (err) {
+        console.error('迷路ファイルの読み込み中にエラーが発生しました:', err);
+        setError(err instanceof Error ? err.message : '迷路ファイルの読み込みに失敗しました');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMaze();
+  }, [url]);
+
+  if (loading) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>迷路データを読み込み中...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: '20px', color: 'red', textAlign: 'center' }}>エラー: {error}</div>;
+  }
+
+  if (!mazeData) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>迷路データが見つかりません</div>;
+  }
+
+  // スタート位置の物理座標を計算
+  const startPhysicalPos = cellToPhysical(mazeData.start.x, mazeData.start.y);
+  
+  // 初期マウス状態
+  const initialMouseState: MouseState = {
+    position: startPhysicalPos,
+    angle: Math.PI / 2, // 北向き
+  };
+
+  return (
+    <MicromouseVisualizer
+      mazeData={mazeData}
+      {...props}
+    >
+      {children ? children : <Mouse mouseState={initialMouseState} />}
+    </MicromouseVisualizer>
+  );
+};
+
+// サンプルデータをそのまま残す（既存のストーリーはそのまま使えるように）
 const sampleMazeData16 = createMazeData(16);
 const sampleMazeData4 = createMazeData(4);
 
 // スタート地点(0,0)の物理座標を計算
 const startPhysicalPos16 = cellToPhysical(0, 0);
 const startPhysicalPos4 = cellToPhysical(0, 0);
+const startPhysicalPos32 = cellToPhysical(0, 0);
 
 const sampleInitialMouseState16: MouseState = {
   position: startPhysicalPos16,
@@ -75,6 +155,11 @@ const sampleInitialMouseState16: MouseState = {
 
 const sampleInitialMouseState4: MouseState = {
   position: startPhysicalPos4,
+  angle: Math.PI / 2, // 北向き
+};
+
+const sampleInitialMouseState32: MouseState = {
+  position: startPhysicalPos32,
   angle: Math.PI / 2, // 北向き
 };
 
@@ -89,14 +174,13 @@ const meta: Meta<typeof MicromouseVisualizer> = {
   tags: ['autodocs'],
   argTypes: {
     mazeData: { control: 'object' },
-    // initialMouseState を削除
     width: { control: 'number' },
     height: { control: 'number' },
     backgroundColor: { control: 'color' },
     showGridHelper: { control: 'boolean' },
     showAxesHelper: { control: 'boolean' },
-    showStartMarker: { control: 'boolean' },
-    showGoalMarkers: { control: 'boolean' },
+    showPerformanceStats: { control: 'boolean' }, // パフォーマンス表示コントロールを追加
+    showDiagonalGrid: { control: 'boolean' }, // 斜めグリッド表示コントロールを追加
     initialViewPreset: {
         control: { type: 'select' },
         options: ['top', 'angle', 'side'],
@@ -118,8 +202,6 @@ export const Default16x16: Story = {
     height: 600,
     showGridHelper: true,
     showAxesHelper: true,
-    showStartMarker: true,
-    showGoalMarkers: true,
     initialViewPreset: 'angle',
   },
   render: (args) => (
@@ -205,9 +287,6 @@ export const NoMazeData: Story = {
 export const WithCustomCellMarkers: Story = {
   args: {
     ...Default16x16.args,
-    // スタート/ゴールマーカーを非表示にして、独自のマーカーを追加
-    showStartMarker: false,
-    showGoalMarkers: false,
   },
   render: (args) => (
     <MicromouseVisualizer {...args}>
@@ -322,8 +401,6 @@ export const WithTextLabels: Story = {
 export const WithLabelsAndMarkers: Story = {
   args: {
     ...Default16x16.args,
-    showStartMarker: false,
-    showGoalMarkers: false,
   },
   render: (args) => (
     <MicromouseVisualizer {...args}>
@@ -376,4 +453,298 @@ export const WithLabelsAndMarkers: Story = {
       <TextLabel cell={{ x: 2, y: 1 }} text="1" color="#ffffff" fontSize={0.06} height={0.005} />
     </MicromouseVisualizer>
   ),
+};
+
+// 32x32の日本2023年ハーフサイズ迷路 - 動的読み込みに置き換え
+export const Japan2023Hef32x32: Story = {
+  args: {
+    width: 1000,
+    height: 800,
+    showGridHelper: true,
+    showAxesHelper: true,
+    showPerformanceStats: false,
+    showDiagonalGrid: true,
+    initialViewPreset: 'angle',
+  },
+  render: (args) => (
+    <DynamicMazeLoader 
+      url={MAZE_FILE_URLS.japan2023Hef}
+      {...args}
+    />
+  ),
+};
+
+// 32x32迷路のトップビュー - 動的読み込みに置き換え
+export const Japan2023HefTopView: Story = {
+  args: {
+    ...Japan2023Hef32x32.args,
+    initialViewPreset: 'top',
+  },
+  render: (args) => (
+    <DynamicMazeLoader 
+      url={MAZE_FILE_URLS.japan2023Hef}
+      {...args}
+    />
+  ),
+};
+
+// 32x32迷路にカスタムマーカーと経路表示 - 動的読み込みに置き換え
+export const Japan2023HefWithPath: Story = {
+  args: {
+    ...Japan2023Hef32x32.args,
+  },
+  render: (args) => {
+    // この中で特定の経路を設定
+    const [mazeData, setMazeData] = useState<MazeData | null>(null);
+    
+    useEffect(() => {
+      // コンポーネントがマウントされたら迷路データを読み込む
+      const fetchMaze = async () => {
+        try {
+          const data = await loadMazeFromUrl(MAZE_FILE_URLS.japan2023Hef);
+          setMazeData(data);
+        } catch (error) {
+          console.error('迷路データの読み込みに失敗しました:', error);
+        }
+      };
+      
+      fetchMaze();
+    }, []);
+    
+    if (!mazeData) {
+      return <div>迷路データを読み込み中...</div>;
+    }
+    
+    // スタート位置の物理座標を計算
+    const startPhysicalPos = cellToPhysical(mazeData.start.x, mazeData.start.y);
+    
+    // 初期マウス状態
+    const initialMouseState: MouseState = {
+      position: startPhysicalPos,
+      angle: Math.PI / 2, // 北向き
+    };
+    
+    // サンプル経路の作成（実際の迷路データに基づいた経路ではありません）
+    // 実際の迷路の壁を考慮した現実的な経路を生成するには、より複雑なアルゴリズムが必要です
+    const samplePath = [
+      {x: 1, y: 0}, {x: 2, y: 0}, {x: 3, y: 0}, {x: 4, y: 0}, {x: 5, y: 0},
+      {x: 5, y: 1}, {x: 5, y: 2}, {x: 5, y: 3}, {x: 5, y: 4}, {x: 6, y: 4},
+      {x: 7, y: 4}, {x: 8, y: 4}, {x: 9, y: 4}, {x: 10, y: 4}, {x: 10, y: 5},
+      {x: 10, y: 6}, {x: 10, y: 7}, {x: 10, y: 8}, {x: 11, y: 8}, {x: 12, y: 8},
+      {x: 12, y: 9}, {x: 12, y: 10}, {x: 12, y: 11}, {x: 13, y: 11}, {x: 14, y: 11},
+      {x: 14, y: 12}, {x: 14, y: 13}, {x: 14, y: 14}, {x: 15, y: 14}, {x: 15, y: 15}
+    ];
+    
+    return (
+      <MicromouseVisualizer
+        mazeData={mazeData}
+        width={args.width}
+        height={args.height}
+        showGridHelper={args.showGridHelper}
+        showAxesHelper={args.showAxesHelper}
+        showPerformanceStats={args.showPerformanceStats}
+        showDiagonalGrid={args.showDiagonalGrid}
+        initialViewPreset={args.initialViewPreset}
+        backgroundColor={args.backgroundColor}
+      >
+        <Mouse mouseState={initialMouseState} />
+        
+        {/* スタート位置のマーカーとラベル */}
+        <CellMarker 
+          cell={{ x: mazeData.start.x, y: mazeData.start.y }}
+          color="#00ff00"
+          opacity={0.8}
+          scale={0.7}
+          type="circle"
+        />
+        <TextLabel 
+          cell={{ x: mazeData.start.x, y: mazeData.start.y }} 
+          text="S" 
+          color="#ffffff" 
+          fontSize={0.06}
+          height={0.01}
+        />
+        
+        {/* ゴール位置のマーカーとラベル */}
+        {mazeData.goal.map((goalCell, index) => (
+          <React.Fragment key={`goal-${index}`}>
+            <CellMarker
+              cell={goalCell}
+              color="#ff0000"
+              opacity={0.7}
+              scale={0.7}
+              type="diamond"
+            />
+            <TextLabel 
+              cell={goalCell} 
+              text="G" 
+              color="#ffffff" 
+              fontSize={0.06}
+              height={0.01}
+            />
+          </React.Fragment>
+        ))}
+        
+        {/* サンプル経路の表示 */}
+        {samplePath.map((cell, index) => (
+          <CellMarker
+            key={`path-${index}`}
+            cell={cell}
+            color="#3399ff"
+            opacity={0.4}
+            scale={0.6}
+            type="square"
+            height={0.001}
+          />
+        ))}
+      </MicromouseVisualizer>
+    );
+  }
+};
+
+// 動的読み込みを使用した日本2023年ハーフサイズ迷路
+export const Japan2023HefDynamic: Story = {
+  args: {
+    width: 1000,
+    height: 800,
+    showGridHelper: true,
+    showAxesHelper: true,
+    showPerformanceStats: false,
+    showDiagonalGrid: true,
+    initialViewPreset: 'angle',
+  },
+  render: (args) => (
+    <DynamicMazeLoader 
+      url={MAZE_FILE_URLS.japan2023Hef}
+      {...args}
+    />
+  ),
+};
+
+// 動的読み込みを使用した日本2023年ハーフサイズ迷路（トップビュー）
+export const Japan2023HefDynamicTopView: Story = {
+  args: {
+    ...Japan2023HefDynamic.args,
+    initialViewPreset: 'top',
+  },
+  render: (args) => (
+    <DynamicMazeLoader 
+      url={MAZE_FILE_URLS.japan2023Hef}
+      {...args}
+    />
+  ),
+};
+
+// 動的読み込みを使用した日本2023年ハーフサイズ迷路（カスタムマーカー付き）
+export const Japan2023HefDynamicWithPath: Story = {
+  args: {
+    ...Japan2023HefDynamic.args,
+  },
+  render: (args) => {
+    // この中で特定の経路を設定
+    const [mazeData, setMazeData] = useState<MazeData | null>(null);
+    
+    useEffect(() => {
+      // コンポーネントがマウントされたら迷路データを読み込む
+      const fetchMaze = async () => {
+        try {
+          const data = await loadMazeFromUrl(MAZE_FILE_URLS.japan2023Hef);
+          setMazeData(data);
+        } catch (error) {
+          console.error('迷路データの読み込みに失敗しました:', error);
+        }
+      };
+      
+      fetchMaze();
+    }, []);
+    
+    if (!mazeData) {
+      return <div>迷路データを読み込み中...</div>;
+    }
+    
+    // スタート位置の物理座標を計算
+    const startPhysicalPos = cellToPhysical(mazeData.start.x, mazeData.start.y);
+    
+    // 初期マウス状態
+    const initialMouseState: MouseState = {
+      position: startPhysicalPos,
+      angle: Math.PI / 2, // 北向き
+    };
+    
+    // サンプル経路の作成（実際の迷路データに基づいた経路ではありません）
+    // 実際の迷路の壁を考慮した現実的な経路を生成するには、より複雑なアルゴリズムが必要です
+    const samplePath = [
+      {x: 1, y: 0}, {x: 2, y: 0}, {x: 3, y: 0}, {x: 4, y: 0}, {x: 5, y: 0},
+      {x: 5, y: 1}, {x: 5, y: 2}, {x: 5, y: 3}, {x: 5, y: 4}, {x: 6, y: 4},
+      {x: 7, y: 4}, {x: 8, y: 4}, {x: 9, y: 4}, {x: 10, y: 4}, {x: 10, y: 5},
+      {x: 10, y: 6}, {x: 10, y: 7}, {x: 10, y: 8}, {x: 11, y: 8}, {x: 12, y: 8},
+      {x: 12, y: 9}, {x: 12, y: 10}, {x: 12, y: 11}, {x: 13, y: 11}, {x: 14, y: 11},
+      {x: 14, y: 12}, {x: 14, y: 13}, {x: 14, y: 14}, {x: 15, y: 14}, {x: 15, y: 15}
+    ];
+    
+    return (
+      <MicromouseVisualizer
+        mazeData={mazeData}
+        width={args.width}
+        height={args.height}
+        showGridHelper={args.showGridHelper}
+        showAxesHelper={args.showAxesHelper}
+        showPerformanceStats={args.showPerformanceStats}
+        showDiagonalGrid={args.showDiagonalGrid}
+        initialViewPreset={args.initialViewPreset}
+        backgroundColor={args.backgroundColor}
+      >
+        <Mouse mouseState={initialMouseState} />
+        
+        {/* スタート位置のマーカーとラベル */}
+        <CellMarker 
+          cell={{ x: mazeData.start.x, y: mazeData.start.y }}
+          color="#00ff00"
+          opacity={0.8}
+          scale={0.7}
+          type="circle"
+        />
+        <TextLabel 
+          cell={{ x: mazeData.start.x, y: mazeData.start.y }} 
+          text="S" 
+          color="#ffffff" 
+          fontSize={0.06}
+          height={0.01}
+        />
+        
+        {/* ゴール位置のマーカーとラベル */}
+        {mazeData.goal.map((goalCell, index) => (
+          <React.Fragment key={`goal-${index}`}>
+            <CellMarker
+              cell={goalCell}
+              color="#ff0000"
+              opacity={0.7}
+              scale={0.7}
+              type="diamond"
+            />
+            <TextLabel 
+              cell={goalCell} 
+              text="G" 
+              color="#ffffff" 
+              fontSize={0.06}
+              height={0.01}
+            />
+          </React.Fragment>
+        ))}
+        
+        {/* サンプル経路の表示 */}
+        {samplePath.map((cell, index) => (
+          <CellMarker
+            key={`path-${index}`}
+            cell={cell}
+            color="#3399ff"
+            opacity={0.4}
+            scale={0.6}
+            type="square"
+            height={0.001}
+          />
+        ))}
+      </MicromouseVisualizer>
+    );
+  }
 };
