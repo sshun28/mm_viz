@@ -92,7 +92,6 @@ export interface WallInstancesProps {
   walls: {
     position: [number, number, number];
     rotation?: [number, number, number];
-    scale?: [number, number, number];
   }[];
 }
 
@@ -186,14 +185,13 @@ export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
             
             // デフォルトのスケール
             const defaultScale: [number, number, number] = [0.01, 0.01, 0.01];
-            const scaleValue = wall.scale || defaultScale;
             
             return (
               <Instance 
                 key={`wall-instance-${i}`}
                 position={wall.position}
                 rotation={[rotX, rotY, rotZ]}
-                scale={scaleValue}
+                scale={defaultScale}
               />
             );
           })}
