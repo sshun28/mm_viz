@@ -138,10 +138,75 @@
 ### 8.2 フェーズ2：インタラクティブ機能 (ライブラリ外部/利用側)
 - **アニメーション制御**:
   - 時系列プロファイルのロード機能
-  - 再生・一時停止・停止機能
-  - 速度調整機能
+  - データプロバイダーとカスタムフック機能
+    - `TrajectoryProvider`: 軌跡データと再生状態を管理するコンテキストプロバイダー
+    - `useTrajectory`: プロバイダー内部の状態とコントロール関数にアクセスするカスタムフック
+  - 再生制御関数の提供:
+    - 再生・一時停止・停止機能
+    - シーク機能（時間指定ジャンプ）
+    - 速度調整機能
+  - 時間インデックス付きのマウス状態插補計算
 - **軌跡表示**:
   - `Trajectory` コンポーネントの実装 (children として渡す)
+  - データプロバイダーコンテキストからの状態取得
+  - 時系列データに基づく軌跡の可視化（過去／予測軌跡の表現）
+
+#### 8.2.1 データプロバイダーパターンの設計
+- **TrajectoryProvider コンポーネント**:
+  - Props:
+    - `trajectoryProfile: TrajectoryProfile`: 時系列のマウス状態プロファイル
+    - `initialTime?: number`: 初期表示時間
+    - `initialSpeed?: number`: 初期再生速度
+    - `children: ReactNode`: 子コンポーネント
+  - 提供する機能:
+    - マウス状態の時間補間処理
+    - 再生ループ（requestAnimationFrame）の管理
+    - 時系列ステート管理
+  
+- **useTrajectory フック**:
+  - 返却値:
+    - `currentMouseState: MouseState`: 現在のマウス状態
+    - `currentTime: number`: 現在の再生時間
+    - `isPlaying: boolean`: 再生中かどうか
+    - `duration: number`: 全体の再生時間
+    - `playbackSpeed: number`: 再生速度
+    - `play(): void`: 再生開始
+    - `pause(): void`: 一時停止
+    - `stop(): void`: 停止（初期状態に戻る）
+    - `seekTo(time: number): void`: 指定時間にジャンプ
+    - `setPlaybackSpeed(speed: number): void`: 再生速度設定
+
+- **利用パターン**:
+  ```tsx
+  // 使用例
+  const App = () => {
+    const trajectoryProfile = /* プロファイルデータ */;
+    
+    return (
+      <TrajectoryProvider trajectoryProfile={trajectoryProfile}>
+        <div className="container">
+          <MicromouseVisualizer mazeData={mazeData}>
+            <AnimatedMouse />
+            <TrajectoryPath />
+          </MicromouseVisualizer>
+          <PlaybackControls />
+        </div>
+      </TrajectoryProvider>
+    );
+  };
+
+  // AnimatedMouseは内部でuseTrajectoryを使用
+  const AnimatedMouse = () => {
+    const { currentMouseState } = useTrajectory();
+    return <Mouse mouseState={currentMouseState} />;
+  };
+
+  // 再生コントロールもuseTrajectoryを使用
+  const PlaybackControls = () => {
+    const { play, pause, seekTo, currentTime, duration, isPlaying } = useTrajectory();
+    // コントロールUI実装
+  };
+  ```
 
 ### 8.3 フェーズ3：高度な機能と最適化
 - **パフォーマンス最適化**:
