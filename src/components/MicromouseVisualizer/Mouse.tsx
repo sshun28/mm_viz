@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { MouseState } from '../../types';
 import { MOUSE_SIZE, FLOOR_THICKNESS } from '../../config/constants';
+import { useTrajectory } from '../../providers/TrajectoryProvider';
 
 // マウスのプロパティの型定義
 export interface MouseProps {
@@ -29,9 +30,12 @@ const Mouse: React.FC<MouseProps> = ({
   showArrowHelper = true,
   modelOffset = {
     position: [0, 0, 0],
-    rotation: [Math.PI / 2, Math.PI/2, 0], // デフォルトはFBXの座標系（Yが上）をThree.jsの座標系（Zが上）に変換
+    rotation: [Math.PI / 2, Math.PI / 2, 0], // デフォルトはFBXの座標系（Yが上）をThree.jsの座標系（Zが上）に変換
   }
 }) => {
+  console.log('Mouse component rendered');
+  const traj = useTrajectory();
+
   // MouseState.position は迷路原点(左下隅)からの物理座標なので、そのまま使用できる
   const posX = mouseState.position.x;
   const posY = mouseState.position.y;
@@ -61,19 +65,19 @@ const Mouse: React.FC<MouseProps> = ({
     if (fbx) {
       // クローンを作成
       const modelClone = fbx.clone();
-      
+
       // モデルのオフセット調整
       if (modelOffset.position) {
         modelClone.position.set(...modelOffset.position);
       }
-      
+
       if (modelOffset.rotation) {
         modelClone.rotation.set(...modelOffset.rotation);
       }
-      
+
       // スケールを設定
       modelClone.scale.set(...scale);
-      
+
       // すべてのメッシュにマテリアルを適用
       modelClone.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -98,11 +102,11 @@ const Mouse: React.FC<MouseProps> = ({
               metalness: 0.3,    // 金属感
             });
           }
-          
+
           // シャドウの設定
           child.castShadow = true;
           child.receiveShadow = true;
-          
+
           // ジオメトリが存在すればバッファを更新
           if (child.geometry) {
             child.geometry.computeBoundingSphere();
@@ -111,14 +115,14 @@ const Mouse: React.FC<MouseProps> = ({
           }
         }
       });
-      
+
       // 既存の子要素をクリアしてクローンを追加
       if (mouseRef.current) {
         while (mouseRef.current.children.length > 0) {
           mouseRef.current.remove(mouseRef.current.children[0]);
         }
         mouseRef.current.add(modelClone);
-        
+
         // 矢印ヘルパーを追加（表示オプションがtrueの場合）
         if (showArrowHelper) {
           mouseRef.current.add(arrowHelper);
@@ -127,10 +131,18 @@ const Mouse: React.FC<MouseProps> = ({
     }
   }, [fbx, modelColor, scale, modelOffset, showArrowHelper, arrowHelper]);
 
+  useFrame(() => {
+    if (!mouseRef.current) return;
+    if (!traj) return;
+    mouseRef.current.position.set(traj.currentMouseState.position.x, traj.currentMouseState.position.y, 0);
+    mouseRef.current.rotation.set(0, 0, traj.currentMouseState.angle);
+  }
+  )
+
   return (
-    <group 
-      ref={mouseRef} 
-      position={[posX, posY, posZ]} 
+    <group
+      ref={mouseRef}
+      position={[posX, posY, posZ]}
       rotation={[0, 0, rotationZ]}
     />
   );
