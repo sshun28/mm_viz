@@ -244,12 +244,12 @@ export const SmallMaze4x4: Story = {
     args: {
       // Default16x16.args から必要な props のみコピー
       mazeData: sampleMazeData4,
-      width: Default16x16.args.width,
-      height: Default16x16.args.height,
-      showGridHelper: Default16x16.args.showGridHelper,
-      showAxesHelper: Default16x16.args.showAxesHelper,
+      width: Default16x16.args!.width,
+      height: Default16x16.args!.height,
+      showGridHelper: Default16x16.args!.showGridHelper,
+      showAxesHelper: Default16x16.args!.showAxesHelper,
       initialViewPreset: 'angle',
-      backgroundColor: Default16x16.args.backgroundColor,
+      backgroundColor: Default16x16.args!.backgroundColor,
     },
     render: (args) => (
         <MicromouseVisualizer {...args}>

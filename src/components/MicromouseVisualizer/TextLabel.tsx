@@ -1,4 +1,3 @@
-// filepath: /workspaces/mm_viz/src/components/MicromouseVisualizer/TextLabel.tsx
 import React from 'react';
 import { Text } from '@react-three/drei';
 import { CELL_SIZE, FLOOR_THICKNESS } from '../../config/constants';
@@ -43,7 +42,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
         fontSize={fontSize}
         anchorX={align}
         anchorY="middle"
-        opacity={opacity}
+        material-opacity={opacity}
         outlineWidth={backgroundColor ? 0.005 : 0}
         outlineColor={backgroundColor}
         outlineOpacity={backgroundColor ? opacity * 0.8 : 0}
