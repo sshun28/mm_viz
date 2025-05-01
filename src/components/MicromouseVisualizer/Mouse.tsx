@@ -134,8 +134,10 @@ const Mouse: React.FC<MouseProps> = ({
   useFrame(() => {
     if (!mouseRef.current) return;
     if (!traj) return;
-    mouseRef.current.position.set(traj.currentMouseState.position.x, traj.currentMouseState.position.y, 0);
-    mouseRef.current.rotation.set(0, 0, traj.currentMouseState.angle);
+    if (!traj.currentMouseStateRef.current) return;
+    const r = traj.currentMouseStateRef.current;
+    mouseRef.current.position.set(r.position.x, r.position.y, 0);
+    mouseRef.current.rotation.set(0, 0, r.angle);
   }
   )
 

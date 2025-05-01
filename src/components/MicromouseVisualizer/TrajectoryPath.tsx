@@ -68,8 +68,8 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     if (!rootRef.current) return;
     
     // ソートされた時間キーの配列を作成してキャッシュ
-    if (trajectory.trajectoryProfile.size > 0) {
-      sortedTimesRef.current = Array.from(trajectory.trajectoryProfile.keys()).sort((a, b) => a - b);
+    if (trajectory.trajectoryProfileRef.current?.size > 0) {
+      sortedTimesRef.current = Array.from(trajectory.trajectoryProfileRef.current?.keys()).sort((a, b) => a - b);
     }
     
     // 過去軌跡のラインを作成
@@ -96,7 +96,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
         if (futureLineRef.current) rootRef.current.remove(futureLineRef.current);
       }
     };
-  }, [trajectory.trajectoryProfile, pastMaterial, futureMaterial, showFutureTrajectory]);
+  }, [trajectory.trajectoryProfileRef, pastMaterial, futureMaterial, showFutureTrajectory]);
   
   // 将来軌跡の表示/非表示が変更された場合の処理
   useEffect(() => {
@@ -131,11 +131,11 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   // 毎フレーム軌跡を更新
   useFrame(() => {
     // 必要なrefがない場合や、軌跡データがない場合は早期リターン
-    if (!rootRef.current || !pastLineRef.current || !trajectory.trajectoryProfile || trajectory.trajectoryProfile.size === 0) {
+    if (!rootRef.current || !pastLineRef.current || !trajectory.trajectoryProfileRef || trajectory.trajectoryProfileRef.current.size === 0) {
       return;
     }
     
-    const currentTime = trajectory.currentTime;
+    const currentTime = trajectory.currentTimeRef.current;
     
     // 時間が変わっていない場合は更新不要
     if (lastTimeRef.current === currentTime) {
@@ -146,14 +146,14 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     
     // ソートされた時間キーが未設定の場合は作成
     if (sortedTimesRef.current.length === 0) {
-      sortedTimesRef.current = Array.from(trajectory.trajectoryProfile.keys()).sort((a, b) => a - b);
+      sortedTimesRef.current = Array.from(trajectory.trajectoryProfileRef.current.keys()).sort((a, b) => a - b);
     }
     
     const sortedTimes = sortedTimesRef.current;
     
     // 軌跡ポイントの計算
     const { pastPoints, futurePoints } = calculateTrajectoryPoints(
-      trajectory.trajectoryProfile,
+      trajectory.trajectoryProfileRef.current,
       sortedTimes,
       currentTime,
       segments,

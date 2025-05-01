@@ -1,15 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MouseState, TrajectoryProfile, TrajectoryElement } from '../types';
+import React, { createContext, useContext, useRef, useCallback, useMemo } from 'react';
+import { MouseState, TrajectoryProfile } from '../types';
 
 // TrajectoryContextの型定義
 interface TrajectoryContextType {
-    // 現在の状態
-    currentMouseState: MouseState;
-    currentTime: number;
-    isPlaying: boolean;
-    duration: number;
-    playbackSpeed: number;
-    trajectoryProfile: TrajectoryProfile;  // 軌跡データ自体も提供
+    // 現在の状態（refで管理）
+    trajectoryProfileRef: React.RefObject<TrajectoryProfile>;
+    currentTimeRef: React.RefObject<number>;
+    isPlayingRef: React.RefObject<boolean>;
+    durationRef: React.RefObject<number>;
+    playbackSpeedRef: React.RefObject<number>;
+    currentMouseStateRef: React.RefObject<MouseState>;
+    sortedTimestampsRef: React.RefObject<number[]>;
 
     // 制御関数
     play: () => void;
@@ -17,21 +18,24 @@ interface TrajectoryContextType {
     stop: () => void;
     seekTo: (time: number) => void;
     setPlaybackSpeed: (speed: number) => void;
+    updateMouseStateForTime: (time: number) => void; // 追加
 }
 
 // デフォルト値の設定
 const defaultContext: TrajectoryContextType = {
-    currentMouseState: { position: { x: 0, y: 0 }, angle: 0 },
-    currentTime: 0,
-    isPlaying: false,
-    duration: 0,
-    playbackSpeed: 1,
-    trajectoryProfile: new Map(),
+    trajectoryProfileRef: { current: new Map() },
+    currentTimeRef: { current: 0 },
+    isPlayingRef: { current: false },
+    durationRef: { current: 0 },
+    playbackSpeedRef: { current: 1 },
+    currentMouseStateRef: { current: { position: { x: 0, y: 0 }, angle: 0 } },
+    sortedTimestampsRef: { current: [] },
     play: () => { },
     pause: () => { },
     stop: () => { },
     seekTo: () => { },
     setPlaybackSpeed: () => { },
+    updateMouseStateForTime: () => { }, // 追加
 };
 
 // コンテキストの作成
@@ -48,6 +52,7 @@ interface TrajectoryProviderProps {
 /**
  * 軌跡データと再生状態を管理するコンテキストプロバイダー
  * マウスの動きを時間に基づいて制御するための機能を提供します
+ * useStateを使用せず、refを使用して状態を管理することでR3Fコンポーネントの不要な再描画を防ぎます
  */
 export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     trajectoryProfile,
@@ -55,135 +60,147 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     initialSpeed = 1,
     children,
 }) => {
-    // 時間関連の状態
-    const [currentTime, setCurrentTime] = useState<number>(initialTime);
-    const [isPlaying, setIsPlaying] = useState<boolean>(false);
-    const [playbackSpeed, setPlaybackSpeed] = useState<number>(initialSpeed);
-
-    // アニメーションフレーム管理用
-    const animationFrameRef = useRef<number | null>(null);
-    const lastTimeRef = useRef<number>(performance.now());
+    // すべての状態をrefで管理（useStateを使わない）
+    const trajectoryProfileRef = useRef<TrajectoryProfile>(trajectoryProfile);
     const currentTimeRef = useRef<number>(initialTime);
+    const isPlayingRef = useRef<boolean>(false);
+    const playbackSpeedRef = useRef<number>(initialSpeed);
+    const currentMouseStateRef = useRef<MouseState>({ position: { x: 0, y: 0 }, angle: 0 });
+    
+    // ソートされたタイムスタンプのキャッシュ
+    const sortedTimestampsRef = useRef<number[]>(
+        Array.from(trajectoryProfile.keys()).sort((a, b) => a - b)
+    );
+    
+    // 時間範囲を計算
+    const durationRef = useRef<number>(
+        sortedTimestampsRef.current.length > 0 
+            ? sortedTimestampsRef.current[sortedTimestampsRef.current.length - 1] 
+            : 0
+    );
 
-    // 更新間隔の制御（レンダリング最適化）
-    const lastRenderTimeRef = useRef<number>(0);
-    const RENDER_INTERVAL = 1000 / 30; // 30FPSでのレンダリング
-
-    // プロファイルから時間の範囲を計算
-    const sortedTimestamps = useSortedTimestamps(trajectoryProfile);
-    const duration = useMemo(() => {
-        return sortedTimestamps.length > 0 ? sortedTimestamps[sortedTimestamps.length - 1] : 0;
-    }, [sortedTimestamps]);
-
-    // 現在のマウス状態を計算（二分探索アルゴリズムを使用）
-    const currentMouseState = useInterpolatedMouseState(trajectoryProfile, currentTime, sortedTimestamps);
-
-    // 再生開始（メモ化により再レンダリングを最小化）
+    // 再生開始
     const play = useCallback(() => {
-        if (isPlaying) return;
-
-        setIsPlaying(true);
-        lastTimeRef.current = performance.now();
+        if (isPlayingRef.current) return;
 
         // 最後まで到達していたら最初から再生
-        if (currentTimeRef.current >= duration) {
+        if (currentTimeRef.current >= durationRef.current) {
             currentTimeRef.current = 0;
-            setCurrentTime(0);
         }
-    }, [isPlaying, duration]);
+        
+        isPlayingRef.current = true;
+    }, []);
 
     // 一時停止
     const pause = useCallback(() => {
-        setIsPlaying(false);
-        if (animationFrameRef.current !== null) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = null;
-        }
+        isPlayingRef.current = false;
     }, []);
 
     // 停止（最初に戻る）
     const stop = useCallback(() => {
-        setIsPlaying(false);
+        isPlayingRef.current = false;
         currentTimeRef.current = 0;
-        setCurrentTime(0);
-        if (animationFrameRef.current !== null) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = null;
+        
+        // 現在のマウス状態を更新（先頭のマウス状態に）
+        if (sortedTimestampsRef.current.length > 0) {
+            const firstElement = trajectoryProfileRef.current.get(sortedTimestampsRef.current[0]);
+            if (firstElement) {
+                currentMouseStateRef.current = {
+                    position: { ...firstElement.position },
+                    angle: firstElement.angle,
+                };
+            }
         }
     }, []);
 
     // 指定時間にシーク
     const seekTo = useCallback((time: number) => {
-        const clampedTime = Math.max(0, Math.min(time, duration));
+        const clampedTime = Math.max(0, Math.min(time, durationRef.current));
         currentTimeRef.current = clampedTime;
-        setCurrentTime(clampedTime);
-    }, [duration]);
-
-    // 再生速度の設定
-    const setSpeed = useCallback((speed: number) => {
-        setPlaybackSpeed(Math.max(0.1, Math.min(10, speed)));
+        
+        // マウス状態も更新
+        updateMouseStateForTime(clampedTime);
     }, []);
 
-    // アニメーションループの最適化
-    useEffect(() => {
-        if (!isPlaying) return;
+    // 再生速度の設定
+    const setPlaybackSpeed = useCallback((speed: number) => {
+        playbackSpeedRef.current = Math.max(0.1, Math.min(10, speed));
+    }, []);
 
-        const animate = (now: number) => {
-            const deltaTime = (now - lastTimeRef.current) / 1000; // 秒単位に変換
-            lastTimeRef.current = now;
-
-            // 内部のrefを更新（Reactの状態更新を減らす）
-            currentTimeRef.current += deltaTime * playbackSpeed;
-
-            // ループ再生
-            if (currentTimeRef.current >= duration) {
-                currentTimeRef.current = 0;
-            }
-
-            // レンダリング間隔を制御（状態更新頻度を下げる）
-            if (now - lastRenderTimeRef.current > RENDER_INTERVAL) {
-                lastRenderTimeRef.current = now;
-                setCurrentTime(currentTimeRef.current);
-            }
-
-            animationFrameRef.current = requestAnimationFrame(animate);
+    // 現在の時間に対応するマウス状態を計算する関数
+    const updateMouseStateForTime = useCallback((time: number) => {
+        const timestamps = sortedTimestampsRef.current;
+        const profile = trajectoryProfileRef.current;
+        
+        // プロファイルが空の場合はデフォルト値
+        if (timestamps.length === 0) {
+            currentMouseStateRef.current = { position: { x: 0, y: 0 }, angle: 0 };
+            return;
+        }
+        
+        // 時間が最小値以下の場合は最初の状態
+        if (time <= timestamps[0]) {
+            const firstElement = profile.get(timestamps[0])!;
+            currentMouseStateRef.current = {
+                position: { ...firstElement.position },
+                angle: firstElement.angle,
+            };
+            return;
+        }
+        
+        // 時間が最大値以上の場合は最後の状態
+        if (time >= timestamps[timestamps.length - 1]) {
+            const lastElement = profile.get(timestamps[timestamps.length - 1])!;
+            currentMouseStateRef.current = {
+                position: { ...lastElement.position },
+                angle: lastElement.angle,
+            };
+            return;
+        }
+        
+        // 二分探索で現在の時刻を挟む前後のキーフレームを効率的に見つける
+        const beforeIndex = binarySearchTimeIndex(timestamps, time);
+        const beforeTime = timestamps[beforeIndex];
+        const afterTime = timestamps[beforeIndex + 1];
+        
+        const beforeElement = profile.get(beforeTime)!;
+        const afterElement = profile.get(afterTime)!;
+        
+        // 前後のキーフレーム間での位置の割合を計算
+        const t = (time - beforeTime) / (afterTime - beforeTime);
+        
+        // 線形補間で現在の位置と角度を計算
+        currentMouseStateRef.current = {
+            position: {
+                x: beforeElement.position.x + (afterElement.position.x - beforeElement.position.x) * t,
+                y: beforeElement.position.y + (afterElement.position.y - beforeElement.position.y) * t,
+            },
+            angle: interpolateAngle(beforeElement.angle, afterElement.angle, t),
         };
+    }, []);
 
-        animationFrameRef.current = requestAnimationFrame(animate);
-
-        // クリーンアップ
-        return () => {
-            if (animationFrameRef.current !== null) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-        };
-    }, [isPlaying, playbackSpeed, duration]);
-
-    // コンテキスト値のメモ化（再レンダリングを減らす）
+    // コンテキスト値のメモ化
     const contextValue = useMemo<TrajectoryContextType>(() => ({
-        currentMouseState,
-        currentTime,
-        isPlaying,
-        duration,
-        playbackSpeed,
-        trajectoryProfile,
+        trajectoryProfileRef,
+        currentTimeRef,
+        isPlayingRef,
+        durationRef,
+        playbackSpeedRef,
+        currentMouseStateRef,
+        sortedTimestampsRef,
         play,
         pause,
         stop,
         seekTo,
-        setPlaybackSpeed: setSpeed,
+        setPlaybackSpeed,
+        updateMouseStateForTime, // 追加
     }), [
-        currentMouseState,
-        currentTime,
-        isPlaying,
-        duration,
-        playbackSpeed,
-        trajectoryProfile,
         play,
         pause,
         stop,
         seekTo,
-        setSpeed
+        setPlaybackSpeed,
+        updateMouseStateForTime // 追加
     ]);
 
     return (
@@ -197,24 +214,15 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
  * TrajectoryProviderのコンテキスト値にアクセスするためのカスタムフック
  * このフックはTrajectoryProviderがツリーの上位に存在する場合にのみ使用できます
  */
-export const useTrajectory = (): TrajectoryContextType | null => {
+export const useTrajectory = (): TrajectoryContextType => {
     const context = useContext(TrajectoryContext);
-
+    
     if (context === undefined) {
-        return null;
+        throw new Error('useTrajectory must be used within a TrajectoryProvider');
     }
-
+    
     return context;
 };
-
-/**
- * TrajectoryProfileの時刻キーをソートして配列として返す
- */
-function useSortedTimestamps(trajectoryProfile: TrajectoryProfile): number[] {
-    return useMemo(() => {
-        return Array.from(trajectoryProfile.keys()).sort((a, b) => a - b);
-    }, [trajectoryProfile]);
-}
 
 /**
  * 二分探索で時間に対応するインデックスを検索する
@@ -246,62 +254,6 @@ function binarySearchTimeIndex(timestamps: number[], time: number): number {
 
     // 見つからない場合（通常はここに到達しない）
     return 0;
-}
-
-/**
- * 現在の時刻に対応するMouseStateを計算する
- * 指定した時刻の前後のキーフレーム間を線形補間して滑らかな動きを実現
- * 二分探索を使用して高速化
- */
-function useInterpolatedMouseState(
-    trajectoryProfile: TrajectoryProfile,
-    currentTime: number,
-    sortedTimestamps: number[]
-): MouseState {
-    return useMemo(() => {
-        // プロファイルが空の場合はデフォルト値を返す
-        if (sortedTimestamps.length === 0) {
-            return { position: { x: 0, y: 0 }, angle: 0 };
-        }
-
-        // 時間が最小値以下の場合は最初の状態を返す
-        if (currentTime <= sortedTimestamps[0]) {
-            const firstElement = trajectoryProfile.get(sortedTimestamps[0])!;
-            return {
-                position: { ...firstElement.position },
-                angle: firstElement.angle,
-            };
-        }
-
-        // 時間が最大値以上の場合は最後の状態を返す
-        if (currentTime >= sortedTimestamps[sortedTimestamps.length - 1]) {
-            const lastElement = trajectoryProfile.get(sortedTimestamps[sortedTimestamps.length - 1])!;
-            return {
-                position: { ...lastElement.position },
-                angle: lastElement.angle,
-            };
-        }
-
-        // 二分探索で現在の時刻を挟む前後のキーフレームを効率的に見つける
-        const beforeIndex = binarySearchTimeIndex(sortedTimestamps, currentTime);
-        const beforeTime = sortedTimestamps[beforeIndex];
-        const afterTime = sortedTimestamps[beforeIndex + 1];
-
-        const beforeElement = trajectoryProfile.get(beforeTime)!;
-        const afterElement = trajectoryProfile.get(afterTime)!;
-
-        // 前後のキーフレーム間での位置の割合を計算
-        const t = (currentTime - beforeTime) / (afterTime - beforeTime);
-
-        // 線形補間で現在の位置と角度を計算
-        return {
-            position: {
-                x: beforeElement.position.x + (afterElement.position.x - beforeElement.position.x) * t,
-                y: beforeElement.position.y + (afterElement.position.y - beforeElement.position.y) * t,
-            },
-            angle: interpolateAngle(beforeElement.angle, afterElement.angle, t),
-        };
-    }, [trajectoryProfile, currentTime, sortedTimestamps]);
 }
 
 /**

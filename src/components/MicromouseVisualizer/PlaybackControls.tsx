@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTrajectory } from '../../providers/TrajectoryProvider';
 
 // CSS スタイル
@@ -17,6 +17,10 @@ const styles = {
     color: 'white',
     fontFamily: 'Arial, sans-serif',
     zIndex: 100,
+  },
+  topControlPanel: {
+    top: '10px',
+    bottom: 'auto',
   },
   button: {
     backgroundColor: '#2196F3',
@@ -70,7 +74,8 @@ interface PlaybackControlsProps {
 
 /**
  * 軌跡再生のコントロールUIコンポーネント
- * 再生・一時停止・停止ボタン、シークバー、タイム表示、再生速度調整を提供します
+ * TrajectoryProviderのコンテキストを使用してアニメーションを制御
+ * UIの更新だけに焦点を当て、内部状態はrefで管理
  */
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   showTimeDisplay = true,
@@ -78,71 +83,106 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   showSeekBar = true,
   controlPosition = 'bottom',
 }) => {
-  // TrajectoryProviderから状態と制御関数を取得
+  // TrajectoryProviderのコンテキストを取得
   const {
-    currentTime,
-    isPlaying,
-    duration,
-    playbackSpeed,
     play,
     pause,
     stop,
     seekTo,
     setPlaybackSpeed,
+    isPlayingRef,
+    currentTimeRef,
+    durationRef,
+    playbackSpeedRef,
   } = useTrajectory();
 
-  // ホバー状態の管理
-  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  // UIの表示用の状態
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackSpeed, setPlaybackSpeedUi] = useState(1);
 
-  // フォーマット済みの時間表示
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
-    const ms = Math.floor((seconds % 1) * 100).toString().padStart(2, '0');
-    return `${mins}:${secs}.${ms}`;
+  // 再生/一時停止の切り替え
+  const togglePlayPause = useCallback(() => {
+    if (isPlayingRef.current) {
+      pause();
+      setIsPlaying(false);
+    } else {
+      play();
+      setIsPlaying(true);
+    }
+  }, [play, pause, isPlayingRef]);
+
+  // 再生停止
+  const handleStop = useCallback(() => {
+    stop();
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [stop]);
+
+  // シークバーの変更
+  const handleSeek = useCallback((value: number) => {
+    seekTo(value);
+    setCurrentTime(value);
+  }, [seekTo]);
+
+  // 再生速度の変更
+  const handleSpeedChange = useCallback((speed: number) => {
+    setPlaybackSpeed(speed);
+    setPlaybackSpeedUi(speed);
+  }, [setPlaybackSpeed]);
+
+  // 時間のフォーマット
+  const formatTime = (timeInSeconds: number): string => {
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+    const milliseconds = Math.floor((timeInSeconds - Math.floor(timeInSeconds)) * 100);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
   };
 
-  // 速度調整ボタン
-  const speedOptions = [0.5, 1, 2, 5, 10];
-
-  // 再生速度表示のフォーマット
-  const formatSpeed = (speed: number) => {
-    return speed === 1 ? '1x' : speed < 1 ? `${speed}x` : `${speed}x`;
+  // 速度のフォーマット
+  const formatSpeed = (speed: number): string => {
+    return `${speed.toFixed(1)}x`;
   };
 
-  // コントロールパネルの位置を調整
+  // 速度オプション
+  const speedOptions = [0.25, 0.5, 1, 2, 4, 8];
+
+  // 状態更新用のインターバル
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // ref から状態を読み取り、UI表示用の状態を更新
+      setIsPlaying(isPlayingRef.current);
+      setCurrentTime(currentTimeRef.current);
+      setDuration(durationRef.current);
+      setPlaybackSpeedUi(playbackSpeedRef.current);
+    }, 50); // 50msごとに更新（60FPSより少し遅め）
+
+    return () => clearInterval(intervalId);
+  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef]);
+
+  // コントロールパネルのスタイル
   const panelStyle = {
     ...styles.controlPanel,
-    bottom: controlPosition === 'bottom' ? '10px' : undefined,
-    top: controlPosition === 'top' ? '10px' : undefined,
+    ...(controlPosition === 'top' ? styles.topControlPanel : {}),
   };
 
   return (
     <div style={panelStyle}>
       {/* 再生/一時停止ボタン */}
       <button
-        style={{
-          ...styles.button,
-          ...(hoveredButton === 'playPause' ? styles.buttonHover : {}),
-        }}
-        onClick={isPlaying ? pause : play}
-        onMouseEnter={() => setHoveredButton('playPause')}
-        onMouseLeave={() => setHoveredButton(null)}
+        onClick={togglePlayPause}
+        style={styles.button}
       >
-        {isPlaying ? '⏸︎ 一時停止' : '▶️ 再生'}
+        {isPlaying ? '一時停止' : '再生'}
       </button>
 
       {/* 停止ボタン */}
       <button
-        style={{
-          ...styles.button,
-          ...(hoveredButton === 'stop' ? styles.buttonHover : {}),
-        }}
-        onClick={stop}
-        onMouseEnter={() => setHoveredButton('stop')}
-        onMouseLeave={() => setHoveredButton(null)}
+        onClick={handleStop}
+        style={styles.button}
       >
-        ⏹︎ 停止
+        停止
       </button>
 
       {/* 時間表示 */}
@@ -160,7 +200,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
           max={duration}
           step={0.01}
           value={currentTime}
-          onChange={(e) => seekTo(parseFloat(e.target.value))}
+          onChange={(e) => handleSeek(parseFloat(e.target.value))}
           style={styles.slider}
         />
       )}
@@ -177,7 +217,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
                 fontWeight: playbackSpeed === speed ? 'bold' : 'normal',
                 backgroundColor: playbackSpeed === speed ? '#2196F3' : '#555',
               }}
-              onClick={() => setPlaybackSpeed(speed)}
+              onClick={() => handleSpeedChange(speed)}
             >
               {formatSpeed(speed)}
             </button>
