@@ -16,6 +16,10 @@ const config: StorybookConfig = {
     "name": "@storybook/react-vite",
     "options": {}
   },
+  "docs": {
+    // docsページを自動生成しない設定
+    autodocs: false,
+  },
   "viteFinal": async (config) => {
     return mergeConfig(config, {
       server: {
