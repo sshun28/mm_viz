@@ -7,29 +7,23 @@ import { FLOOR_THICKNESS } from '../../config/constants';
 // TrajectoryPathのProps
 interface TrajectoryPathProps {
   pastColor?: string;           // 過去の軌跡の色
-  futureColor?: string;         // 将来の軌跡の色
   lineWidth?: number;           // 線の太さ
-  showFutureTrajectory?: boolean; // 将来の軌跡を表示するかどうか
   height?: number;              // 床からの高さ
   segments?: number;            // 表示するセグメント数 (過去)
-  futureSegments?: number;      // 表示するセグメント数 (将来)
   opacity?: number;             // 透明度
   simplifyTolerance?: number;   // ポイント間引きの許容誤差
 }
 
 /**
  * マウスの軌跡を表示するコンポーネント
- * 過去の軌跡と将来の軌跡を区別して表示します
+ * 過去の軌跡を実線で表示します
  * useFrameを使用してThree.jsオブジェクトを直接操作し、パフォーマンスを向上
  */
 const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   pastColor = '#00aaff',
-  futureColor = '#aaaaaa',
   lineWidth = 2,
-  showFutureTrajectory = false,
   height = 0.005,
   segments = 100,
-  futureSegments = 50,
   opacity = 0.7,
   simplifyTolerance = 0.01, // ポイント間引きの許容誤差（小さいほど高精度、大きいほど軽量）
 }) => {
@@ -40,7 +34,6 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   // Three.jsのオブジェクト参照
   const rootRef = useRef<THREE.Group>(null);
   const pastLineRef = useRef<THREE.Line | null>(null);
-  const futureLineRef = useRef<THREE.Line | null>(null);
   
   // キャッシュとタイムスタンプの参照
   const lastTimeRef = useRef<number>(-1);
@@ -53,15 +46,6 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     transparent: true,
     opacity: opacity,
   }), [pastColor, lineWidth, opacity]);
-  
-  const futureMaterial = useMemo(() => new THREE.LineDashedMaterial({
-    color: futureColor,
-    linewidth: lineWidth - 0.5,
-    transparent: true,
-    opacity: opacity * 0.7,
-    dashSize: 0.05,
-    gapSize: 0.05,
-  }), [futureColor, lineWidth, opacity]);
   
   // コンポーネントのマウント時に必要なセットアップを行う
   useEffect(() => {
@@ -77,41 +61,16 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     const pastLine = new THREE.Line(pastGeometry, pastMaterial);
     pastLineRef.current = pastLine;
     
-    // 将来軌跡のラインを作成
-    const futureGeometry = new THREE.BufferGeometry();
-    const futureLine = new THREE.Line(futureGeometry, futureMaterial);
-    futureLineRef.current = futureLine;
-    
     // シーンに追加
     rootRef.current.add(pastLine);
-    
-    if (showFutureTrajectory) {
-      rootRef.current.add(futureLine);
-    }
     
     // クリーンアップ
     return () => {
       if (rootRef.current) {
         if (pastLineRef.current) rootRef.current.remove(pastLineRef.current);
-        if (futureLineRef.current) rootRef.current.remove(futureLineRef.current);
       }
     };
-  }, [trajectory.trajectoryProfileRef, pastMaterial, futureMaterial, showFutureTrajectory]);
-  
-  // 将来軌跡の表示/非表示が変更された場合の処理
-  useEffect(() => {
-    if (!rootRef.current || !futureLineRef.current) return;
-    
-    if (showFutureTrajectory) {
-      if (!rootRef.current.children.includes(futureLineRef.current)) {
-        rootRef.current.add(futureLineRef.current);
-      }
-    } else {
-      if (rootRef.current.children.includes(futureLineRef.current)) {
-        rootRef.current.remove(futureLineRef.current);
-      }
-    }
-  }, [showFutureTrajectory]);
+  }, [trajectory.trajectoryProfileRef, pastMaterial]);
   
   // 軌跡の色やスタイルが変更された場合に更新
   useEffect(() => {
@@ -120,13 +79,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       (pastLineRef.current.material as THREE.LineBasicMaterial).linewidth = lineWidth;
       (pastLineRef.current.material as THREE.LineBasicMaterial).opacity = opacity;
     }
-    
-    if (futureLineRef.current && futureLineRef.current.material) {
-      (futureLineRef.current.material as THREE.LineDashedMaterial).color.set(futureColor);
-      (futureLineRef.current.material as THREE.LineDashedMaterial).linewidth = lineWidth - 0.5;
-      (futureLineRef.current.material as THREE.LineDashedMaterial).opacity = opacity * 0.7;
-    }
-  }, [pastColor, futureColor, lineWidth, opacity]);
+  }, [pastColor, lineWidth, opacity]);
   
   // 毎フレーム軌跡を更新
   useFrame(() => {
@@ -152,13 +105,11 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     const sortedTimes = sortedTimesRef.current;
     
     // 軌跡ポイントの計算
-    const { pastPoints, futurePoints } = calculateTrajectoryPoints(
+    const pastPoints = calculateTrajectoryPoints(
       trajectory.trajectoryProfileRef.current,
       sortedTimes,
       currentTime,
       segments,
-      futureSegments,
-      showFutureTrajectory,
       height,
       simplifyTolerance
     );
@@ -170,18 +121,6 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       pastGeometry.setAttribute('position', new THREE.BufferAttribute(pastPositions, 3));
       pastGeometry.computeBoundingSphere();
       pastGeometry.attributes.position.needsUpdate = true;
-    }
-    
-    // 将来軌跡の更新
-    if (showFutureTrajectory && futureLineRef.current && futurePoints.length > 1) {
-      const futurePositions = new Float32Array(futurePoints.flat());
-      const futureGeometry = futureLineRef.current.geometry;
-      futureGeometry.setAttribute('position', new THREE.BufferAttribute(futurePositions, 3));
-      futureGeometry.computeBoundingSphere();
-      futureGeometry.attributes.position.needsUpdate = true;
-      
-      // 破線のパターンを更新
-      (futureLineRef.current as THREE.Line).computeLineDistances();
     }
   });
   
@@ -198,21 +137,16 @@ function calculateTrajectoryPoints(
   sortedTimes: number[],
   currentTime: number,
   segments: number,
-  futureSegments: number,
-  showFutureTrajectory: boolean,
   height: number,
   simplifyTolerance: number
-): { pastPoints: [number, number, number][], futurePoints: [number, number, number][] } {
+): [number, number, number][] {
   // プロファイルが未定義または空の場合
   if (!trajectoryProfile || trajectoryProfile.size === 0 || sortedTimes.length === 0) {
-    return { pastPoints: [], futurePoints: [] };
+    return [];
   }
   
   // 過去の軌跡
   const pastPointsArray: [number, number, number][] = [];
-  
-  // 将来の軌跡
-  const futurePointsArray: [number, number, number][] = [];
   
   // 二分探索で現在時刻のインデックスを検索
   let currentIndex = binarySearchTimeIndex(sortedTimes, currentTime);
@@ -233,52 +167,10 @@ function calculateTrajectoryPoints(
     }
   }
   
-  // 将来の軌跡の計算（現在時刻以降）
-  if (showFutureTrajectory) {
-    const futureEndIndex = Math.min(sortedTimes.length - 1, currentIndex + futureSegments);
-    const availableFuturePoints = futureEndIndex - currentIndex;
-    
-    if (availableFuturePoints > 0) {
-      if (availableFuturePoints <= futureSegments) {
-        // 利用可能なポイント数がセグメント数以下の場合、全ポイントを使用
-        for (let i = currentIndex + 1; i <= futureEndIndex; i++) {
-          const time = sortedTimes[i];
-          const element = trajectoryProfile.get(time);
-          if (element) {
-            futurePointsArray.push([
-              element.position.x,
-              element.position.y,
-              FLOOR_THICKNESS / 2 + height
-            ]);
-          }
-        }
-      } else {
-        // 利用可能なポイント数がセグメント数より多い場合、均等に分散
-        for (let i = 0; i < futureSegments; i++) {
-          const ratio = i / (futureSegments - 1);
-          const index = currentIndex + 1 + Math.round(ratio * (futureEndIndex - currentIndex - 1));
-          const time = sortedTimes[index];
-          const element = trajectoryProfile.get(time);
-          if (element) {
-            futurePointsArray.push([
-              element.position.x,
-              element.position.y,
-              FLOOR_THICKNESS / 2 + height
-            ]);
-          }
-        }
-      }
-    }
-  }
-  
   // 形状の単純化（ポリゴン削減によるパフォーマンス向上）
   const simplifiedPastPoints = simplifyPoints(pastPointsArray, simplifyTolerance);
-  const simplifiedFuturePoints = simplifyPoints(futurePointsArray, simplifyTolerance);
   
-  return { 
-    pastPoints: simplifiedPastPoints, 
-    futurePoints: simplifiedFuturePoints 
-  };
+  return simplifiedPastPoints;
 }
 
 /**

@@ -111,7 +111,7 @@ export const WithSampleTrajectory: Story = {
                     >
                         <TrajectoryAnimationController />
                         <Mouse mouseState={{ position: { x: 0, y: 0 }, angle: Math.PI / 2 }} />
-                        {<TrajectoryPath pastColor="#00aaff" showFutureTrajectory={true} futureColor="#aaaaaa" />}
+                        {<TrajectoryPath pastColor="#00aaff" />}
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
@@ -129,7 +129,7 @@ export const TopViewWithTrajectory: Story = {
     render: WithSampleTrajectory.render,
 };
 
-// 将来の軌跡を非表示にしたバージョン
+// 標準的な軌跡表示のストーリー
 export const TrajectoryWithoutFuture: Story = {
     args: {
         ...WithSampleTrajectory.args,
@@ -176,7 +176,7 @@ export const TrajectoryWithoutFuture: Story = {
                         backgroundColor={args.backgroundColor}
                     >
                         <TrajectoryAnimationController />
-                        <TrajectoryPath pastColor="#00aaff" showFutureTrajectory={false} />
+                        <TrajectoryPath pastColor="#00aaff" />
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
@@ -232,7 +232,7 @@ export const CustomizedControls: Story = {
                         backgroundColor={args.backgroundColor}
                     >
                         <TrajectoryAnimationController />
-                        <TrajectoryPath pastColor="#ff6600" showFutureTrajectory={true} futureColor="#ffcc00" lineWidth={3} />
+                        <TrajectoryPath pastColor="#ff6600" lineWidth={3} />
                     </MicromouseVisualizer>
                     <PlaybackControls controlPosition="top" showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
