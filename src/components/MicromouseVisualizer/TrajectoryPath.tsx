@@ -217,11 +217,11 @@ function calculateTrajectoryPoints(
   // 二分探索で現在時刻のインデックスを検索
   let currentIndex = binarySearchTimeIndex(sortedTimes, currentTime);
   
-  // 過去の軌跡の計算（現在時刻まで）
-  const pastStartIndex = Math.max(0, currentIndex - segments);
-  const pastStep = Math.max(1, Math.floor((currentIndex - pastStartIndex) / segments));
+  // 過去の軌跡の計算（現在時刻まで全て表示）
+  // segmentsによる制限を撤廃し、開始から現在時刻まで全ての軌跡を表示
+  const pastStartIndex = 0; // 最初から
   
-  for (let i = pastStartIndex; i <= currentIndex; i += pastStep) {
+  for (let i = pastStartIndex; i <= currentIndex; i++) {
     const time = sortedTimes[i];
     const element = trajectoryProfile.get(time);
     if (element) {
@@ -233,46 +233,40 @@ function calculateTrajectoryPoints(
     }
   }
   
-  // 最後の点（現在時刻のポイント）が含まれているか確認
-  const lastPastElement = trajectoryProfile.get(sortedTimes[currentIndex]);
-  if (lastPastElement && pastPointsArray.length > 0 && 
-      (pastPointsArray[pastPointsArray.length - 1][0] !== lastPastElement.position.x || 
-       pastPointsArray[pastPointsArray.length - 1][1] !== lastPastElement.position.y)) {
-    pastPointsArray.push([
-      lastPastElement.position.x,
-      lastPastElement.position.y,
-      FLOOR_THICKNESS / 2 + height
-    ]);
-  }
-  
   // 将来の軌跡の計算（現在時刻以降）
   if (showFutureTrajectory) {
     const futureEndIndex = Math.min(sortedTimes.length - 1, currentIndex + futureSegments);
-    const futureStep = Math.max(1, Math.floor((futureEndIndex - currentIndex) / futureSegments));
+    const availableFuturePoints = futureEndIndex - currentIndex;
     
-    for (let i = currentIndex + 1; i <= futureEndIndex; i += futureStep) {
-      const time = sortedTimes[i];
-      const element = trajectoryProfile.get(time);
-      if (element) {
-        futurePointsArray.push([
-          element.position.x,
-          element.position.y,
-          FLOOR_THICKNESS / 2 + height
-        ]);
-      }
-    }
-    
-    // 最後の点が含まれているか確認
-    if (futureEndIndex > currentIndex) {
-      const lastFutureElement = trajectoryProfile.get(sortedTimes[futureEndIndex]);
-      if (lastFutureElement && futurePointsArray.length > 0 &&
-          (futurePointsArray[futurePointsArray.length - 1][0] !== lastFutureElement.position.x ||
-           futurePointsArray[futurePointsArray.length - 1][1] !== lastFutureElement.position.y)) {
-        futurePointsArray.push([
-          lastFutureElement.position.x,
-          lastFutureElement.position.y,
-          FLOOR_THICKNESS / 2 + height
-        ]);
+    if (availableFuturePoints > 0) {
+      if (availableFuturePoints <= futureSegments) {
+        // 利用可能なポイント数がセグメント数以下の場合、全ポイントを使用
+        for (let i = currentIndex + 1; i <= futureEndIndex; i++) {
+          const time = sortedTimes[i];
+          const element = trajectoryProfile.get(time);
+          if (element) {
+            futurePointsArray.push([
+              element.position.x,
+              element.position.y,
+              FLOOR_THICKNESS / 2 + height
+            ]);
+          }
+        }
+      } else {
+        // 利用可能なポイント数がセグメント数より多い場合、均等に分散
+        for (let i = 0; i < futureSegments; i++) {
+          const ratio = i / (futureSegments - 1);
+          const index = currentIndex + 1 + Math.round(ratio * (futureEndIndex - currentIndex - 1));
+          const time = sortedTimes[index];
+          const element = trajectoryProfile.get(time);
+          if (element) {
+            futurePointsArray.push([
+              element.position.x,
+              element.position.y,
+              FLOOR_THICKNESS / 2 + height
+            ]);
+          }
+        }
       }
     }
   }
