@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
 import TrajectoryPath from '../src/components/MicromouseVisualizer/TrajectoryPath';
-import PlaybackControls from '../src/components/MicromouseVisualizer/PlaybackControls';
+import PlaybackControls from './components/PlaybackControls';
 import { TrajectoryProvider } from '../src/providers/TrajectoryProvider';
 import { loadMazeFromUrl } from '../src/utils/mazeLoader';
 import { MazeData, TrajectoryProfile, TrajectoryElement } from '../src/types';

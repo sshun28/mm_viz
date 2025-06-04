@@ -55,15 +55,16 @@ MicromouseVisualizer (メインコンテナ)
 ```tsx
 import MicromouseVisualizer from './src/components/MicromouseVisualizer/MicromouseVisualizer';
 import TrajectoryPath from './src/components/MicromouseVisualizer/TrajectoryPath';
-import PlaybackControls from './src/components/MicromouseVisualizer/PlaybackControls';
 import { TrajectoryProvider } from './src/providers/TrajectoryProvider';
+import { usePlaybackControls } from './src/hooks/usePlaybackControls';
 
 <TrajectoryProvider trajectoryProfile={trajectoryData} initialSpeed={1}>
   <MicromouseVisualizer mazeData={mazeData} width={800} height={600}>
     <TrajectoryPath pastColor="#00aaff" />
     <Mouse mouseState={{ position: { x: 0, y: 0 }, angle: Math.PI / 2 }} />
   </MicromouseVisualizer>
-  <PlaybackControls showTimeDisplay={true} showSpeedControls={true} />
+  {/* カスタムUIコントロール */}
+  <CustomPlaybackControls />
 </TrajectoryProvider>
 ```
 
@@ -90,14 +91,21 @@ import { TrajectoryProvider } from './src/providers/TrajectoryProvider';
 - `lineWidth?: number` - 線の太さ（デフォルト: 2）
 - `opacity?: number` - 透明度（デフォルト: 0.7）
 
-### PlaybackControls
+### usePlaybackControls
 
-軌跡アニメーションの制御UI
+軌跡アニメーション制御のためのheadless hook
 
-**Props:**
-- `showTimeDisplay?: boolean` - 時間表示
-- `showSpeedControls?: boolean` - 速度制御
-- `showSeekBar?: boolean` - シークバー表示
+**戻り値:**
+- `isPlaying: boolean` - 再生状態
+- `currentTime: number` - 現在時刻
+- `duration: number` - 総再生時間
+- `playbackSpeed: number` - 再生速度
+- `togglePlayPause: () => void` - 再生/一時停止切り替え
+- `handleStop: () => void` - 再生停止
+- `handleSeek: (value: number) => void` - シーク操作
+- `handleSpeedChange: (speed: number) => void` - 速度変更
+- `formatTime: (time: number) => string` - 時間フォーマット
+- `formatSpeed: (speed: number) => string` - 速度フォーマット
 
 ## データ構造
 
@@ -139,12 +147,33 @@ interface TrajectoryElement {
 - **Stats.js統合**: リアルタイムFPS・メモリ監視
 - **ポイント間引き**: 軌跡の単純化によるレンダリング軽量化
 
+## アーキテクチャの特徴
+
+### Headless UI設計
+アニメーション制御などのロジックはheadless hookとして提供され、UI実装は完全に分離されています：
+
+```tsx
+// カスタムUIコンポーネントの例
+const CustomPlaybackControls = () => {
+  const { isPlaying, togglePlayPause, currentTime, formatTime } = usePlaybackControls();
+  
+  return (
+    <div className="your-custom-style">
+      <button onClick={togglePlayPause}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+      <span>{formatTime(currentTime)}</span>
+    </div>
+  );
+};
+```
+
 ## 開発
 
 プロジェクトはStorybookをメイン開発環境として使用しています。以下のストーリーが利用可能です：
 
 - **基本可視化**: 迷路とマウスの表示
-- **軌跡アニメーション**: 時間ベースの軌跡再生
+- **軌跡アニメーション**: 時間ベースの軌跡再生（サンプルUIコントロール付き）
 - **カメラプリセット**: 異なる視点からの表示
 - **カスタマイズ例**: 色・線幅・透明度の調整
 
