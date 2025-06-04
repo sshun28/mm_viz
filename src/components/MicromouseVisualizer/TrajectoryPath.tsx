@@ -115,11 +115,15 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     );
     
     // 過去軌跡の更新
+    const pastGeometry = pastLineRef.current.geometry;
     if (pastPoints.length > 1) {
       const pastPositions = new Float32Array(pastPoints.flat());
-      const pastGeometry = pastLineRef.current.geometry;
       pastGeometry.setAttribute('position', new THREE.BufferAttribute(pastPositions, 3));
       pastGeometry.computeBoundingSphere();
+      pastGeometry.attributes.position.needsUpdate = true;
+    } else {
+      // ポイントが1個以下の場合はgeometryをクリア
+      pastGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([]), 3));
       pastGeometry.attributes.position.needsUpdate = true;
     }
   });
@@ -142,6 +146,11 @@ function calculateTrajectoryPoints(
 ): [number, number, number][] {
   // プロファイルが未定義または空の場合
   if (!trajectoryProfile || trajectoryProfile.size === 0 || sortedTimes.length === 0) {
+    return [];
+  }
+  
+  // 現在時刻が最初の時刻以下の場合は軌跡を表示しない（停止時のリセット対応）
+  if (currentTime <= sortedTimes[0]) {
     return [];
   }
   
