@@ -11,14 +11,16 @@ interface TrajectoryContextType {
     playbackSpeedRef: React.RefObject<number>;
     currentMouseStateRef: React.RefObject<MouseState>;
     sortedTimestampsRef: React.RefObject<number[]>;
+    isLoopEnabledRef: React.RefObject<boolean>;
 
     // 制御関数
     play: () => void;
     pause: () => void;
     stop: () => void;
-    seekTo: (time: number) => void;
+    seekTo: (time: number, pauseAfterSeek?: boolean) => void;
     setPlaybackSpeed: (speed: number) => void;
-    updateMouseStateForTime: (time: number) => void; // 追加
+    setLoopEnabled: (enabled: boolean) => void;
+    updateMouseStateForTime: (time: number) => void;
 }
 
 // デフォルト値の設定
@@ -30,12 +32,14 @@ const defaultContext: TrajectoryContextType = {
     playbackSpeedRef: { current: 1 },
     currentMouseStateRef: { current: { position: { x: 0, y: 0 }, angle: 0 } },
     sortedTimestampsRef: { current: [] },
+    isLoopEnabledRef: { current: false },
     play: () => { },
     pause: () => { },
     stop: () => { },
     seekTo: () => { },
     setPlaybackSpeed: () => { },
-    updateMouseStateForTime: () => { }, // 追加
+    setLoopEnabled: () => { },
+    updateMouseStateForTime: () => { },
 };
 
 // コンテキストの作成
@@ -46,6 +50,7 @@ interface TrajectoryProviderProps {
     trajectoryProfile: TrajectoryProfile;
     initialTime?: number;
     initialSpeed?: number;
+    initialLoopEnabled?: boolean;
     children: React.ReactNode;
 }
 
@@ -58,6 +63,7 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     trajectoryProfile,
     initialTime = 0,
     initialSpeed = 1,
+    initialLoopEnabled = false,
     children,
 }) => {
     // すべての状態をrefで管理（useStateを使わない）
@@ -65,6 +71,7 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     const currentTimeRef = useRef<number>(initialTime);
     const isPlayingRef = useRef<boolean>(false);
     const playbackSpeedRef = useRef<number>(initialSpeed);
+    const isLoopEnabledRef = useRef<boolean>(initialLoopEnabled);
     const currentMouseStateRef = useRef<MouseState>({ position: { x: 0, y: 0 }, angle: 0 });
     
     // ソートされたタイムスタンプのキャッシュ
@@ -83,9 +90,13 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     const play = useCallback(() => {
         if (isPlayingRef.current) return;
 
-        // 最後まで到達していたら最初から再生
+        // 最後まで到達していたらループが有効な場合は最初から再生、無効な場合は停止状態を維持
         if (currentTimeRef.current >= durationRef.current) {
-            currentTimeRef.current = 0;
+            if (isLoopEnabledRef.current) {
+                currentTimeRef.current = 0;
+            } else {
+                return; // ループが無効な場合は再生しない
+            }
         }
         
         isPlayingRef.current = true;
@@ -114,9 +125,14 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     }, []);
 
     // 指定時間にシーク
-    const seekTo = useCallback((time: number) => {
+    const seekTo = useCallback((time: number, pauseAfterSeek: boolean = true) => {
         const clampedTime = Math.max(0, Math.min(time, durationRef.current));
         currentTimeRef.current = clampedTime;
+        
+        // シーク時に一時停止する場合
+        if (pauseAfterSeek) {
+            isPlayingRef.current = false;
+        }
         
         // マウス状態も更新
         updateMouseStateForTime(clampedTime);
@@ -125,6 +141,11 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     // 再生速度の設定
     const setPlaybackSpeed = useCallback((speed: number) => {
         playbackSpeedRef.current = Math.max(0.1, Math.min(10, speed));
+    }, []);
+
+    // ループ再生の設定
+    const setLoopEnabled = useCallback((enabled: boolean) => {
+        isLoopEnabledRef.current = enabled;
     }, []);
 
     // 現在の時間に対応するマウス状態を計算する関数
@@ -188,19 +209,22 @@ export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
         playbackSpeedRef,
         currentMouseStateRef,
         sortedTimestampsRef,
+        isLoopEnabledRef,
         play,
         pause,
         stop,
         seekTo,
         setPlaybackSpeed,
-        updateMouseStateForTime, // 追加
+        setLoopEnabled,
+        updateMouseStateForTime,
     }), [
         play,
         pause,
         stop,
         seekTo,
         setPlaybackSpeed,
-        updateMouseStateForTime // 追加
+        setLoopEnabled,
+        updateMouseStateForTime
     ]);
 
     return (

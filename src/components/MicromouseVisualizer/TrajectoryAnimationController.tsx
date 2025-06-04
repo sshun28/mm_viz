@@ -12,6 +12,7 @@ const TrajectoryAnimationController: React.FC = () => {
     currentTimeRef,
     durationRef,
     playbackSpeedRef,
+    isLoopEnabledRef,
     updateMouseStateForTime
   } = useTrajectory();
 
@@ -37,12 +38,16 @@ const TrajectoryAnimationController: React.FC = () => {
     
     // 時間が終端を超えたら
     if (nextTime >= durationRef.current) {
-      // 最後の時間に設定
-      currentTimeRef.current = durationRef.current;
-      // 一時停止
-      isPlayingRef.current = false;
-      // マウスの状態を更新
-      updateMouseStateForTime(durationRef.current);
+      if (isLoopEnabledRef.current) {
+        // ループが有効な場合は最初から再開
+        currentTimeRef.current = 0;
+        updateMouseStateForTime(0);
+      } else {
+        // ループが無効な場合は最後の時間に設定して一時停止
+        currentTimeRef.current = durationRef.current;
+        isPlayingRef.current = false;
+        updateMouseStateForTime(durationRef.current);
+      }
       lastTimeRef.current = 0;
       return;
     }

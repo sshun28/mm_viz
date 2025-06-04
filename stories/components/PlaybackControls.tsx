@@ -67,6 +67,7 @@ interface PlaybackControlsProps {
   showTimeDisplay?: boolean;
   showSpeedControls?: boolean;
   showSeekBar?: boolean;
+  showLoopControl?: boolean;
   controlPosition?: 'top' | 'bottom';
 }
 
@@ -78,6 +79,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   showTimeDisplay = true,
   showSpeedControls = true,
   showSeekBar = true,
+  showLoopControl = true,
   controlPosition = 'bottom',
 }) => {
   const {
@@ -85,10 +87,12 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
     currentTime,
     duration,
     playbackSpeed,
+    isLoopEnabled,
     togglePlayPause,
     handleStop,
     handleSeek,
     handleSpeedChange,
+    handleLoopToggle,
     formatTime,
     formatSpeed,
     speedOptions,
@@ -156,6 +160,19 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
             </button>
           ))}
         </div>
+      )}
+
+      {/* ループ制御 */}
+      {showLoopControl && (
+        <button
+          onClick={handleLoopToggle}
+          style={{
+            ...styles.button,
+            backgroundColor: isLoopEnabled ? '#4CAF50' : '#555',
+          }}
+        >
+          🔁 {isLoopEnabled ? 'ON' : 'OFF'}
+        </button>
       )}
     </div>
   );

@@ -13,10 +13,12 @@ export const usePlaybackControls = () => {
     stop,
     seekTo,
     setPlaybackSpeed,
+    setLoopEnabled,
     isPlayingRef,
     currentTimeRef,
     durationRef,
     playbackSpeedRef,
+    isLoopEnabledRef,
   } = useTrajectory();
 
   // UIの表示用の状態
@@ -24,6 +26,7 @@ export const usePlaybackControls = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeedUi] = useState(1);
+  const [isLoopEnabled, setIsLoopEnabledUi] = useState(false);
 
   // 再生/一時停止の切り替え
   const togglePlayPause = useCallback(() => {
@@ -43,9 +46,9 @@ export const usePlaybackControls = () => {
     setCurrentTime(0);
   }, [stop]);
 
-  // シークバーの変更
-  const handleSeek = useCallback((value: number) => {
-    seekTo(value);
+  // シークバーの変更（デフォルトで一時停止）
+  const handleSeek = useCallback((value: number, pauseAfterSeek: boolean = true) => {
+    seekTo(value, pauseAfterSeek);
     setCurrentTime(value);
   }, [seekTo]);
 
@@ -54,6 +57,13 @@ export const usePlaybackControls = () => {
     setPlaybackSpeed(speed);
     setPlaybackSpeedUi(speed);
   }, [setPlaybackSpeed]);
+
+  // ループ設定の変更
+  const handleLoopToggle = useCallback(() => {
+    const newLoopState = !isLoopEnabledRef.current;
+    setLoopEnabled(newLoopState);
+    setIsLoopEnabledUi(newLoopState);
+  }, [setLoopEnabled, isLoopEnabledRef]);
 
   // 時間のフォーマット
   const formatTime = useCallback((timeInSeconds: number): string => {
@@ -76,10 +86,11 @@ export const usePlaybackControls = () => {
       setCurrentTime(currentTimeRef.current);
       setDuration(durationRef.current);
       setPlaybackSpeedUi(playbackSpeedRef.current);
+      setIsLoopEnabledUi(isLoopEnabledRef.current);
     }, 50); // 50msごとに更新（60FPSより少し遅め）
 
     return () => clearInterval(intervalId);
-  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef]);
+  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef, isLoopEnabledRef]);
 
   return {
     // 状態
@@ -87,12 +98,14 @@ export const usePlaybackControls = () => {
     currentTime,
     duration,
     playbackSpeed,
+    isLoopEnabled,
     
     // アクション
     togglePlayPause,
     handleStop,
     handleSeek,
     handleSpeedChange,
+    handleLoopToggle,
     
     // ユーティリティ
     formatTime,
