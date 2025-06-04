@@ -6,7 +6,6 @@ import PlaybackControls from './components/PlaybackControls';
 import { TrajectoryProvider } from '../src/providers/TrajectoryProvider';
 import { loadMazeFromUrl } from '../src/utils/mazeLoader';
 import { MazeData, TrajectoryProfile, TrajectoryElement } from '../src/types';
-import { CELL_SIZE } from '../src/config/constants';
 import TrajectoryAnimationController from '../src/components/MicromouseVisualizer/TrajectoryAnimationController';
 import Mouse from '../src/components/MicromouseVisualizer/Mouse';
 import { sampleTrajectoryProfile } from './trajectory_profile';
@@ -111,7 +110,7 @@ export const WithSampleTrajectory: Story = {
                     >
                         <TrajectoryAnimationController />
                         <Mouse mouseState={{ position: { x: 0, y: 0 }, angle: Math.PI / 2 }} />
-                        {<TrajectoryPath pastColor="#00aaff" />}
+                        {<TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={false} />}
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
@@ -176,7 +175,7 @@ export const TrajectoryWithoutFuture: Story = {
                         backgroundColor={args.backgroundColor}
                     >
                         <TrajectoryAnimationController />
-                        <TrajectoryPath pastColor="#00aaff" />
+                        <TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={false} />
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
@@ -232,9 +231,147 @@ export const CustomizedControls: Story = {
                         backgroundColor={args.backgroundColor}
                     >
                         <TrajectoryAnimationController />
-                        <TrajectoryPath pastColor="#ff6600" lineWidth={3} />
+                        <TrajectoryPath pastColor="#ff6600" lineWidth={3} showLine={true} showPoints={false} />
                     </MicromouseVisualizer>
                     <PlaybackControls controlPosition="top" showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
+                </TrajectoryProvider>
+            </div>
+        );
+    },
+};
+
+// 点表示のストーリー
+export const PointTrajectory: Story = {
+    args: {
+        ...WithSampleTrajectory.args,
+        showPerformanceStats: true,
+    },
+    render: (args) => {
+        // 16x16の迷路
+        const [mazeData, setMazeData] = useState<MazeData | null>(null);
+
+        // コンポーネントのマウント時にサンプル迷路を読み込む
+        React.useEffect(() => {
+            const loadMaze = async () => {
+                // デフォルトの空の迷路データを作成
+                const emptyMaze: MazeData = {
+                    size: 16,
+                    walls: {
+                        vwall: Array(16).fill(null).map(() => Array(17).fill(false)),
+                        hwall: Array(17).fill(null).map(() => Array(16).fill(false)),
+                    },
+                    start: { x: 0, y: 0 },
+                    goal: [{ x: 7, y: 7 }, { x: 8, y: 7 }, { x: 7, y: 8 }, { x: 8, y: 8 }],
+                };
+                // 外壁を設定
+                for (let y = 0; y < 16; y++) {
+                    emptyMaze.walls.vwall[y][0] = true; // 左端
+                    emptyMaze.walls.vwall[y][16] = true; // 右端
+                }
+                for (let x = 0; x < 16; x++) {
+                    emptyMaze.walls.hwall[0][x] = true; // 上端
+                    emptyMaze.walls.hwall[16][x] = true; // 下端
+                }
+                setMazeData(emptyMaze);
+            };
+
+            loadMaze();
+        }, []);
+
+        // サンプルの軌跡データ
+        const trajectoryProfile = createSampleTrajectoryProfile();
+
+        if (!mazeData) {
+            return <div>迷路データを読み込み中...</div>;
+        }
+
+        return (
+            <div style={{ position: 'relative', width: args.width, height: args.height }}>
+                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                    <MicromouseVisualizer
+                        mazeData={mazeData}
+                        width={args.width}
+                        height={args.height}
+                        showGridHelper={args.showGridHelper}
+                        showAxesHelper={args.showAxesHelper}
+                        showPerformanceStats={args.showPerformanceStats}
+                        initialViewPreset={args.initialViewPreset}
+                        backgroundColor={args.backgroundColor}
+                    >
+                        <TrajectoryAnimationController />
+                        <Mouse mouseState={{ position: { x: 0, y: 0 }, angle: Math.PI / 2 }} />
+                        {<TrajectoryPath pastColor="#00aaff" showLine={false} showPoints={true} pointColor="#ff0000" pointSize={0.0008} />}
+                    </MicromouseVisualizer>
+                    <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
+                </TrajectoryProvider>
+            </div>
+        );
+    },
+};
+
+// 線と点の両方表示
+export const LineAndPointTrajectory: Story = {
+    args: {
+        ...WithSampleTrajectory.args,
+        showPerformanceStats: true,
+    },
+    render: (args) => {
+        // 16x16の迷路
+        const [mazeData, setMazeData] = useState<MazeData | null>(null);
+
+        // コンポーネントのマウント時にサンプル迷路を読み込む
+        React.useEffect(() => {
+            const loadMaze = async () => {
+                // デフォルトの空の迷路データを作成
+                const emptyMaze: MazeData = {
+                    size: 16,
+                    walls: {
+                        vwall: Array(16).fill(null).map(() => Array(17).fill(false)),
+                        hwall: Array(17).fill(null).map(() => Array(16).fill(false)),
+                    },
+                    start: { x: 0, y: 0 },
+                    goal: [{ x: 7, y: 7 }, { x: 8, y: 7 }, { x: 7, y: 8 }, { x: 8, y: 8 }],
+                };
+                // 外壁を設定
+                for (let y = 0; y < 16; y++) {
+                    emptyMaze.walls.vwall[y][0] = true; // 左端
+                    emptyMaze.walls.vwall[y][16] = true; // 右端
+                }
+                for (let x = 0; x < 16; x++) {
+                    emptyMaze.walls.hwall[0][x] = true; // 上端
+                    emptyMaze.walls.hwall[16][x] = true; // 下端
+                }
+                setMazeData(emptyMaze);
+            };
+
+            loadMaze();
+        }, []);
+
+        // サンプルの軌跡データ
+        const trajectoryProfile = createSampleTrajectoryProfile();
+
+        if (!mazeData) {
+            return <div>迷路データを読み込み中...</div>;
+        }
+
+        return (
+            <div style={{ position: 'relative', width: args.width, height: args.height }}>
+                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                    <MicromouseVisualizer
+                        mazeData={mazeData}
+                        width={args.width}
+                        height={args.height}
+                        showGridHelper={args.showGridHelper}
+                        showAxesHelper={args.showAxesHelper}
+                        showPerformanceStats={args.showPerformanceStats}
+                        initialViewPreset={args.initialViewPreset}
+                        backgroundColor={args.backgroundColor}
+                    >
+                        <TrajectoryAnimationController />
+                        <Mouse mouseState={{ position: { x: 0, y: 0 }, angle: Math.PI / 2 }} />
+                        {<TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={true} pointColor="#ff4400" pointSize={0.0006} />}
+                    </MicromouseVisualizer>
+                    <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
                 </TrajectoryProvider>
             </div>
         );

@@ -11,12 +11,15 @@ interface TrajectoryPathProps {
   height?: number;              // 床からの高さ
   segments?: number;            // 表示するセグメント数 (過去)
   opacity?: number;             // 透明度
-  simplifyTolerance?: number;   // ポイント間引きの許容誤差
+  showLine?: boolean;           // 線表示の有効/無効
+  showPoints?: boolean;         // 点表示の有効/無効
+  pointSize?: number;           // 点のサイズ
+  pointColor?: string;          // 点の色
 }
 
 /**
  * マウスの軌跡を表示するコンポーネント
- * 過去の軌跡を実線で表示します
+ * 過去の軌跡を線と点で表示できます
  * useFrameを使用してThree.jsオブジェクトを直接操作し、パフォーマンスを向上
  */
 const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
@@ -25,19 +28,26 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   height = 0.005,
   segments = 100,
   opacity = 0.7,
-  simplifyTolerance = 0.01, // ポイント間引きの許容誤差（小さいほど高精度、大きいほど軽量）
+  showLine = true,
+  showPoints = false,
+  pointSize = 0.001,
+  pointColor,
 }) => {
   // TrajectoryProviderからデータを取得
   const trajectory = useTrajectory();
-  const { scene } = useThree();
   
   // Three.jsのオブジェクト参照
   const rootRef = useRef<THREE.Group>(null);
   const pastLineRef = useRef<THREE.Line | null>(null);
+  const pointsInstancedMeshRef = useRef<THREE.InstancedMesh | null>(null);
   
   // キャッシュとタイムスタンプの参照
   const lastTimeRef = useRef<number>(-1);
   const sortedTimesRef = useRef<number[]>([]);
+  const maxPointsRef = useRef<number>(1000); // インスタンス化するポイントの最大数
+  
+  // 点の色を決定（pointColorが未指定の場合はpastColorを使用）
+  const actualPointColor = pointColor || pastColor;
   
   // マテリアルを作成
   const pastMaterial = useMemo(() => new THREE.LineBasicMaterial({
@@ -46,6 +56,19 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     transparent: true,
     opacity: opacity,
   }), [pastColor, lineWidth, opacity]);
+  
+  // 点用のマテリアルを作成
+  const pointMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: actualPointColor,
+    transparent: true,
+    opacity: opacity,
+    side: THREE.DoubleSide, // 両面表示
+    depthTest: true,
+    depthWrite: true,
+  }), [actualPointColor, opacity]);
+  
+  // 点用のジオメトリを作成（小さな球体）
+  const pointGeometry = useMemo(() => new THREE.SphereGeometry(pointSize, 8, 6), [pointSize]);
   
   // コンポーネントのマウント時に必要なセットアップを行う
   useEffect(() => {
@@ -57,20 +80,33 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     }
     
     // 過去軌跡のラインを作成
-    const pastGeometry = new THREE.BufferGeometry();
-    const pastLine = new THREE.Line(pastGeometry, pastMaterial);
-    pastLineRef.current = pastLine;
+    if (showLine) {
+      const pastGeometry = new THREE.BufferGeometry();
+      const pastLine = new THREE.Line(pastGeometry, pastMaterial);
+      pastLineRef.current = pastLine;
+      rootRef.current.add(pastLine);
+    }
     
-    // シーンに追加
-    rootRef.current.add(pastLine);
+    // 点表示用のInstancedMeshを作成
+    if (showPoints) {
+      const pointsInstancedMesh = new THREE.InstancedMesh(pointGeometry, pointMaterial, maxPointsRef.current);
+      pointsInstancedMesh.count = 0; // 初期状態では何も表示しない
+      pointsInstancedMesh.visible = true;
+      pointsInstancedMesh.castShadow = false;
+      pointsInstancedMesh.receiveShadow = false;
+      pointsInstancedMesh.frustumCulled = false; // カリングを無効にして確実に表示
+      pointsInstancedMeshRef.current = pointsInstancedMesh;
+      rootRef.current.add(pointsInstancedMesh);
+    }
     
     // クリーンアップ
     return () => {
       if (rootRef.current) {
         if (pastLineRef.current) rootRef.current.remove(pastLineRef.current);
+        if (pointsInstancedMeshRef.current) rootRef.current.remove(pointsInstancedMeshRef.current);
       }
     };
-  }, [trajectory.trajectoryProfileRef, pastMaterial]);
+  }, [trajectory.trajectoryProfileRef, pastMaterial, pointGeometry, pointMaterial, showLine, showPoints]);
   
   // 軌跡の色やスタイルが変更された場合に更新
   useEffect(() => {
@@ -79,12 +115,22 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       (pastLineRef.current.material as THREE.LineBasicMaterial).linewidth = lineWidth;
       (pastLineRef.current.material as THREE.LineBasicMaterial).opacity = opacity;
     }
-  }, [pastColor, lineWidth, opacity]);
+    
+    if (pointsInstancedMeshRef.current && pointsInstancedMeshRef.current.material) {
+      (pointsInstancedMeshRef.current.material as THREE.MeshBasicMaterial).color.set(actualPointColor);
+      (pointsInstancedMeshRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+    }
+  }, [pastColor, lineWidth, opacity, actualPointColor]);
   
   // 毎フレーム軌跡を更新
   useFrame(() => {
     // 必要なrefがない場合や、軌跡データがない場合は早期リターン
-    if (!rootRef.current || !pastLineRef.current || !trajectory.trajectoryProfileRef || trajectory.trajectoryProfileRef.current.size === 0) {
+    if (!rootRef.current || !trajectory.trajectoryProfileRef || trajectory.trajectoryProfileRef.current.size === 0) {
+      return;
+    }
+    
+    // 線と点の両方が無効な場合は何もしない
+    if (!showLine && !showPoints) {
       return;
     }
     
@@ -109,28 +155,64 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       trajectory.trajectoryProfileRef.current,
       sortedTimes,
       currentTime,
-      segments,
-      height,
-      simplifyTolerance
+      height
     );
     
-    // 過去軌跡の更新
-    const pastGeometry = pastLineRef.current.geometry;
-    if (pastPoints.length > 1) {
-      const pastPositions = new Float32Array(pastPoints.flat());
-      pastGeometry.setAttribute('position', new THREE.BufferAttribute(pastPositions, 3));
-      pastGeometry.computeBoundingSphere();
-      pastGeometry.attributes.position.needsUpdate = true;
-    } else {
-      // ポイントが1個以下の場合はgeometryをクリア
-      pastGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([]), 3));
-      pastGeometry.attributes.position.needsUpdate = true;
+    // 線の軌跡を更新
+    if (showLine && pastLineRef.current) {
+      const pastGeometry = pastLineRef.current.geometry;
+      if (pastPoints.length > 1) {
+        const pastPositions = new Float32Array(pastPoints.flat());
+        pastGeometry.setAttribute('position', new THREE.BufferAttribute(pastPositions, 3));
+        pastGeometry.computeBoundingSphere();
+        pastGeometry.attributes.position.needsUpdate = true;
+      } else {
+        // ポイントが1個以下の場合はgeometryをクリア
+        pastGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([]), 3));
+        pastGeometry.attributes.position.needsUpdate = true;
+      }
+    }
+    
+    // 点の軌跡を更新
+    if (showPoints && pointsInstancedMeshRef.current) {
+      updatePointsDisplay(pastPoints, pointsInstancedMeshRef.current);
     }
   });
   
   // レンダリング - 空のグループを返すだけで、実際の処理はuseFrameが担当
   return <group ref={rootRef} />;
 };
+
+/**
+ * InstancedMeshを使用して点の表示を更新する関数
+ * パフォーマンスを考慮して、InstancedMeshのmatrixを直接更新
+ */
+function updatePointsDisplay(points: [number, number, number][], instancedMesh: THREE.InstancedMesh) {
+  const maxInstances = 1000;
+  const pointCount = Math.min(points.length, maxInstances);
+  
+  // ポイントが無い場合はInstancedMeshを非表示
+  if (points.length === 0) {
+    instancedMesh.count = 0;
+    return;
+  }
+  
+  // 各ポイントの位置を設定
+  for (let i = 0; i < pointCount; i++) {
+    const [x, y, z] = points[i];
+    // 点の高さを線と同じにする（zをそのまま使用）
+    
+    // Matrix4を明示的に作成して位置を設定
+    const matrix = new THREE.Matrix4();
+    matrix.makeTranslation(x, y, z);
+    
+    instancedMesh.setMatrixAt(i, matrix);
+  }
+  
+  // 表示するインスタンス数を設定
+  instancedMesh.count = pointCount;
+  instancedMesh.instanceMatrix.needsUpdate = true;
+}
 
 /**
  * 軌跡ポイントを計算する関数
@@ -140,9 +222,7 @@ function calculateTrajectoryPoints(
   trajectoryProfile: Map<number, any>,
   sortedTimes: number[],
   currentTime: number,
-  segments: number,
-  height: number,
-  simplifyTolerance: number
+  height: number
 ): [number, number, number][] {
   // プロファイルが未定義または空の場合
   if (!trajectoryProfile || trajectoryProfile.size === 0 || sortedTimes.length === 0) {
@@ -176,10 +256,7 @@ function calculateTrajectoryPoints(
     }
   }
   
-  // 形状の単純化（ポリゴン削減によるパフォーマンス向上）
-  const simplifiedPastPoints = simplifyPoints(pastPointsArray, simplifyTolerance);
-  
-  return simplifiedPastPoints;
+  return pastPointsArray;
 }
 
 /**
@@ -212,46 +289,5 @@ function binarySearchTimeIndex(timestamps: number[], time: number): number {
   return 0;
 }
 
-/**
- * ダグラス・ポイカー法を使用してポイント列を単純化
- * 許容誤差内で冗長なポイントを削除し、パフォーマンスを向上
- */
-function simplifyPoints(
-  points: [number, number, number][],
-  tolerance: number
-): [number, number, number][] {
-  if (points.length <= 2) return points;
-  
-  // 単純化の必要がないほど少ない点数の場合はそのまま返す
-  if (points.length <= 10) return points;
-  
-  const result: [number, number, number][] = [];
-  
-  // 最初と最後の点は常に保持
-  result.push(points[0]);
-  
-  // 中間点を許容誤差に基づいて取捨選択
-  let lastAddedPoint = points[0];
-  
-  for (let i = 1; i < points.length - 1; i++) {
-    const current = points[i];
-    const dx = current[0] - lastAddedPoint[0];
-    const dy = current[1] - lastAddedPoint[1];
-    const distSquared = dx * dx + dy * dy;
-    
-    // 前回追加した点から十分離れている場合のみ追加
-    if (distSquared > tolerance * tolerance) {
-      result.push(current);
-      lastAddedPoint = current;
-    }
-  }
-  
-  // 最後の点を追加
-  if (points.length > 1) {
-    result.push(points[points.length - 1]);
-  }
-  
-  return result;
-}
 
 export default React.memo(TrajectoryPath);
