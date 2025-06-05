@@ -292,4 +292,5 @@ function interpolateAngle(a1: number, a2: number, t: number): number {
     return ((a1 + diff * t + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 }
 
+export { TrajectoryProvider };
 export default TrajectoryProvider;
