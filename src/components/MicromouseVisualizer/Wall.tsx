@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useFBX, Instances, Instance } from '@react-three/drei';
 import * as THREE from 'three';
+import { getModelPath } from '../../assets/models';
 
 // 壁のプロパティの型定義
 export interface WallProps {
@@ -20,7 +21,7 @@ const Wall: React.FC<WallProps> = ({
   scale = [1, 1, 1]
 }) => {
   // FBXモデルを読み込む
-  const fbx = useFBX('/3d_models/wall.fbx');
+  const fbx = useFBX(getModelPath('wall'));
   const wallRef = useRef<THREE.Group>(null);
   const { scene } = useThree();
   
@@ -101,7 +102,7 @@ export interface WallInstancesProps {
  */
 export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
   // FBXモデルを読み込む
-  const fbx = useFBX('/3d_models/wall.fbx');
+  const fbx = useFBX(getModelPath('wall'));
   const { scene } = useThree();
   
   // モデルの基本的なジオメトリとマテリアルを抽出

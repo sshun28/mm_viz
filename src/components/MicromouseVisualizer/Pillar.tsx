@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useFBX, Instances, Instance } from '@react-three/drei';
 import * as THREE from 'three';
 import { PILLAR_COLOR } from '../../config/constants';
+import { getModelPath } from '../../assets/models';
 
 // 柱のプロパティの型定義
 export interface PillarProps {
@@ -30,7 +31,7 @@ export interface PillarInstancesProps {
  */
 export const PillarInstances: React.FC<PillarInstancesProps> = ({ positions }) => {
     // FBXモデルを読み込む
-    const fbx = useFBX('/3d_models/pillar.fbx');
+    const fbx = useFBX(getModelPath('pillar'));
     
     // FBXモデルからジオメトリとマテリアルの配列を抽出
     const meshes = useMemo(() => {

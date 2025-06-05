@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { MouseState } from '../../types';
 import { MOUSE_SIZE, FLOOR_THICKNESS } from '../../config/constants';
 import { useTrajectory } from '../../providers/TrajectoryProvider';
+import { getModelPath } from '../../assets/models';
 
 // マウスのプロパティの型定義
 export interface MouseProps {
@@ -24,7 +25,7 @@ export interface MouseProps {
  */
 const Mouse: React.FC<MouseProps> = ({
   mouseState,
-  fbxPath = '/3d_models/micromouse.fbx',
+  fbxPath = getModelPath('micromouse'),
   scale = [0.001, 0.001, 0.001],
   modelColor,
   showArrowHelper = true,

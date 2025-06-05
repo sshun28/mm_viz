@@ -2,6 +2,37 @@
 
 マイクロマウス迷路探索の3D可視化を行うReactコンポーネントライブラリです。Three.js/React Three Fiberを使用してマイクロマウスロボットの迷路ナビゲーションをインタラクティブに3D表示します。
 
+## インストール
+
+```bash
+npm install git+https://github.com/sshun28/mm_viz.git
+```
+
+## 重要: 3Dモデルファイルの設定
+
+このライブラリは3Dモデルファイル（FBX形式）を使用します。使用前に以下の設定が必要です：
+
+### 方法1: 公開ディレクトリにコピー
+
+```bash
+cp -r node_modules/mm_viz/3d_models public/
+```
+
+### 方法2: カスタムパスを使用
+
+```typescript
+import { setModelBasePath } from 'mm_viz';
+
+// アプリケーションの開始時に設定
+setModelBasePath('/your-custom-path/3d_models');
+```
+
+### 必要なファイル
+
+- `micromouse.fbx` - マウスの3Dモデル
+- `wall.fbx` - 壁の3Dモデル  
+- `pillar.fbx` - 柱の3Dモデル
+
 ## 特徴
 
 - 🎯 **リアルタイム3D可視化**: マイクロマウスの迷路探索をリアルタイムで3D表示

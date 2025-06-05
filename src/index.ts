@@ -20,3 +20,6 @@ export * from './utils/mazeLoader';
 
 // Config exports
 export * from './config/constants';
+
+// Asset exports
+export * from './assets/models';
