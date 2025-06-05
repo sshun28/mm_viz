@@ -59,7 +59,7 @@ interface TrajectoryProviderProps {
  * マウスの動きを時間に基づいて制御するための機能を提供します
  * useStateを使用せず、refを使用して状態を管理することでR3Fコンポーネントの不要な再描画を防ぎます
  */
-export const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
+const TrajectoryProvider: React.FC<TrajectoryProviderProps> = ({
     trajectoryProfile,
     initialTime = 0,
     initialSpeed = 1,
@@ -291,3 +291,5 @@ function interpolateAngle(a1: number, a2: number, t: number): number {
     // 補間した角度を-πからπの範囲に正規化
     return ((a1 + diff * t + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 }
+
+export default TrajectoryProvider;
