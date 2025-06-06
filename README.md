@@ -8,30 +8,21 @@
 npm install git+https://github.com/sshun28/mm_viz.git
 ```
 
-## 重要: 3Dモデルファイルの設定
+## 3Dモデルについて
 
-このライブラリは3Dモデルファイル（FBX形式）を使用します。使用前に以下の設定が必要です：
+このライブラリは3Dモデルを使用します。**設定は不要です** - すべての3DモデルはBase64形式でライブラリに埋め込まれているため、追加の設定なしで使用できます。
 
-### 方法1: 公開ディレクトリにコピー
+### 高度な設定（オプション）
 
-```bash
-cp -r node_modules/mm_viz/3d_models public/
-```
-
-### 方法2: カスタムパスを使用
+従来のFBXファイルを使用したい場合：
 
 ```typescript
-import { setModelBasePath } from 'mm_viz';
+import { setUseEmbeddedModels, setModelBasePath } from 'mm_viz';
 
-// アプリケーションの開始時に設定
+// 埋め込みモデルを無効化してファイルパスを使用
+setUseEmbeddedModels(false);
 setModelBasePath('/your-custom-path/3d_models');
 ```
-
-### 必要なファイル
-
-- `micromouse.fbx` - マウスの3Dモデル
-- `wall.fbx` - 壁の3Dモデル  
-- `pillar.fbx` - 柱の3Dモデル
 
 ## 特徴
 

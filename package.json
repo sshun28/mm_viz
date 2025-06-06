@@ -9,7 +9,7 @@
     "3d_models"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && find src -name '*.css' | while read file; do cp \"$file\" \"dist/${file#src/}\"; done",
+    "build": "node scripts/encode-models.js && tsc -p tsconfig.build.json && find src -name '*.css' | while read file; do cp \"$file\" \"dist/${file#src/}\"; done",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
