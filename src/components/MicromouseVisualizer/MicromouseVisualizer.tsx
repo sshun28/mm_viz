@@ -3,7 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Line } from '@react-three/drei'; // Lineコンポーネントをインポート
 import * as THREE from 'three';
 import Stats from 'stats.js';
-import './MicromouseVisualizer.css';
 import { MazeData, CameraViewPreset } from '../../types';
 import { CELL_SIZE, cameraPresets } from '../../config/constants';
 import CameraController from './CameraController';
@@ -213,34 +212,54 @@ const CustomGrid: React.FC<{
 // --- Props定義 ---
 interface MicromouseVisualizerProps {
   mazeData?: MazeData;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   backgroundColor?: string;
   showGridHelper?: boolean;
   showAxesHelper?: boolean;
   showPerformanceStats?: boolean; // パフォーマンス表示のオプション
   showDiagonalGrid?: boolean; // 斜めグリッドを表示するかどうか
   initialViewPreset?: CameraViewPreset;
+  className?: string; // TailwindCSSなどのクラス名を受け取る
+  style?: React.CSSProperties; // インラインスタイルも受け取れるように
   children?: React.ReactNode;
 }
 
 // --- メインコンポーネント ---
 export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   mazeData,
-  width = 800,
-  height = 600,
+  width = '100%',
+  height = '100%',
   backgroundColor = '#181818',
   showGridHelper = false,
   showAxesHelper = false,
   showPerformanceStats = false, // デフォルトはOFF
   showDiagonalGrid = true, // デフォルトは表示する
   initialViewPreset = 'angle',
+  className,
+  style,
   children,
 }) => {
 
   // 迷路データがない場合は早期リターン
   if (!mazeData) {
-    return <div style={{ width, height, backgroundColor: '#181818', display: 'flex', justifyContent: 'center', alignItems: 'center', color:"#CCCCCC" }}>Loading Maze Data...</div>;
+    return (
+      <div 
+        className={className}
+        style={{ 
+          width, 
+          height, 
+          backgroundColor: '#181818', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          color:"#CCCCCC",
+          ...style 
+        }}
+      >
+        Loading Maze Data...
+      </div>
+    );
   }
   // ここから下では mazeData は undefined ではない
 
@@ -251,7 +270,15 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   const initialCameraPosition = cameraPresets[initialViewPreset].position as [number, number, number];
 
   return (
-    <div style={{ width, height, position: 'relative' }} className="mm-visualizer">
+    <div 
+      className={className}
+      style={{ 
+        width, 
+        height, 
+        position: 'relative',
+        ...style 
+      }}
+    >
       <Canvas
         shadows
         camera={{ fov: 50, near: 0.1, far: 1000, position: initialCameraPosition, up: [0, 0, 1] }}

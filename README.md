@@ -24,9 +24,52 @@ setUseEmbeddedModels(false);
 setModelBasePath('/your-custom-path/3d_models');
 ```
 
+## 使用方法
+
+### 基本的な使用例
+
+```tsx
+import { MicromouseVisualizer } from 'mm_viz';
+
+function App() {
+  return (
+    <MicromouseVisualizer 
+      mazeData={mazeData}
+      className="w-full h-screen"
+    />
+  );
+}
+```
+
+### レスポンシブデザイン
+
+コンポーネントはデフォルトで親要素の100%のサイズになります。TailwindCSSなどのユーティリティクラスを使用できます：
+
+```tsx
+<MicromouseVisualizer 
+  mazeData={mazeData}
+  className="w-full h-screen rounded-lg shadow-lg"
+/>
+```
+
+### カスタムスタイル
+
+インラインスタイルも使用可能です：
+
+```tsx
+<MicromouseVisualizer 
+  mazeData={mazeData}
+  style={{
+    borderRadius: '16px',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+  }}
+/>
+```
+
 ## 特徴
 
 - 🎯 **リアルタイム3D可視化**: マイクロマウスの迷路探索をリアルタイムで3D表示
+- 📱 **レスポンシブ対応**: 親要素に合わせて自動的にサイズ調整
 - 🎮 **軌跡アニメーション**: 時間ベースの軌跡再生・一時停止・シーク機能
 - 📱 **インタラクティブカメラ**: 複数のカメラプリセット（トップ・アングル・サイド・正射影）
 - ⚡ **高性能レンダリング**: InstancedMeshによる最適化された壁・柱の描画
