@@ -19,6 +19,7 @@ export const usePlaybackControls = () => {
     durationRef,
     playbackSpeedRef,
     isLoopEnabledRef,
+    sortedTimestampsRef,
   } = useTrajectory();
 
   // UIの表示用の状態
@@ -27,6 +28,8 @@ export const usePlaybackControls = () => {
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeedUi] = useState(1);
   const [isLoopEnabled, setIsLoopEnabledUi] = useState(false);
+  const [firstTimestamp, setFirstTimestamp] = useState<number | null>(null);
+  const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
 
   // 再生/一時停止の切り替え
   const togglePlayPause = useCallback(() => {
@@ -87,10 +90,20 @@ export const usePlaybackControls = () => {
       setDuration(durationRef.current);
       setPlaybackSpeedUi(playbackSpeedRef.current);
       setIsLoopEnabledUi(isLoopEnabledRef.current);
+      
+      // タイムスタンプの最初と最後を更新
+      const timestamps = sortedTimestampsRef.current;
+      if (timestamps && timestamps.length > 0) {
+        setFirstTimestamp(timestamps[0]);
+        setLastTimestamp(timestamps[timestamps.length - 1]);
+      } else {
+        setFirstTimestamp(null);
+        setLastTimestamp(null);
+      }
     }, 50); // 50msごとに更新（60FPSより少し遅め）
 
     return () => clearInterval(intervalId);
-  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef, isLoopEnabledRef]);
+  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef, isLoopEnabledRef, sortedTimestampsRef]);
 
   return {
     // 状態
@@ -99,6 +112,8 @@ export const usePlaybackControls = () => {
     duration,
     playbackSpeed,
     isLoopEnabled,
+    firstTimestamp,
+    lastTimestamp,
     
     // アクション
     togglePlayPause,
