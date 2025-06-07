@@ -3,13 +3,17 @@ export { default as MicromouseVisualizer } from './components/MicromouseVisualiz
 export { default as TrajectoryProvider } from './providers/TrajectoryProvider';
 
 // Component exports
+export { default as Maze } from './components/MicromouseVisualizer/Maze';
+export { default as CameraController } from './components/MicromouseVisualizer/CameraController';
 export { default as Mouse } from './components/MicromouseVisualizer/Mouse';
 export { default as CellMarker } from './components/MicromouseVisualizer/CellMarker';
 export { default as TextLabel } from './components/MicromouseVisualizer/TextLabel';
 export { default as TrajectoryPath } from './components/MicromouseVisualizer/TrajectoryPath';
+export { default as TrajectoryAnimationController } from './components/MicromouseVisualizer/TrajectoryAnimationController';
 // export { default as PlaybackControls } from './components/MicromouseVisualizer/PlaybackControls';
 
 // Hook exports
+export { useTrajectory } from './providers/TrajectoryProvider';
 export { default as usePlaybackControls } from './hooks/usePlaybackControls';
 
 // Type exports
