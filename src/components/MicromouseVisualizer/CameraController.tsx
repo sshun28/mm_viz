@@ -34,6 +34,9 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     new THREE.Vector3(mazeSize * CELL_SIZE / 2, mazeSize * CELL_SIZE / 2, 0)
   );
   const [isOrtho, setIsOrtho] = useState(false);
+  
+  // zoomToRegionのペンディング状態を管理
+  const pendingZoomRef = useRef<{x1: number, y1: number, x2: number, y2: number} | null>(null);
 
   // 迷路サイズからカメラのパラメータを計算
   const mazeWidth = mazeSize * CELL_SIZE;
@@ -179,6 +182,23 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     }
   }, [size, isOrtho, camera, updateOrthographicCamera, updatePerspectiveCamera]);
 
+  // isOrthoの状態変化を監視してペンディング中のzoomToRegionを実行
+  useEffect(() => {
+    if (isOrtho && camera instanceof THREE.OrthographicCamera && pendingZoomRef.current) {
+      console.log('isOrtho became true, executing pending zoom...');
+      const { x1, y1, x2, y2 } = pendingZoomRef.current;
+      const currentControls = controlsRef.current || controlsFromHook;
+      
+      // ペンディング状態をクリア
+      pendingZoomRef.current = null;
+      
+      // 少し遅延してからズーム実行（カメラの初期化完了を待つ）
+      setTimeout(() => {
+        performRegionZoom(camera, x1, y1, x2, y2, currentControls);
+      }, 50);
+    }
+  }, [isOrtho, camera, controlsFromHook]);
+
   const setCameraView = useCallback((presetKey: CameraViewPreset) => {
     // ビューモードに応じた位置を計算
     const preset = cameraPresets[presetKey];
@@ -249,48 +269,34 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
 
   // 指定された領域にズームする関数（直交投影モード専用）
   const zoomToRegion = useCallback((x1: number, y1: number, x2: number, y2: number) => {
-    // 領域の中心とサイズを計算
-    const centerX = (x1 + x2) / 2;
-    const centerY = (y1 + y2) / 2;
-    const regionWidth = Math.abs(x2 - x1);
-    const regionHeight = Math.abs(y2 - y1);
+    console.log('zoomToRegion called:', { x1, y1, x2, y2, isOrtho });
     
     // OrbitControlsを取得
     const currentControls = controlsRef.current || controlsFromHook;
     
     // 直交投影モードでない場合は切り替える
     if (!isOrtho) {
-      console.log('Switching to orthographic mode...');
+      console.log('Not in ortho mode, switching and setting pending zoom...');
+      
+      // ズーム領域をペンディング状態に保存
+      pendingZoomRef.current = { x1, y1, x2, y2 };
       
       // OrbitControlsをリセットしてから直交投影に切り替える
       if (currentControls && 'reset' in currentControls && typeof (currentControls as any).reset === 'function') {
         (currentControls as any).reset();
       }
       
-      // setCameraViewを使って直交投影に切り替える
-      setCameraView('ortho');
-      
-      // 状態の更新を待ってからズーム領域を設定
-      const performZoom = () => {
-        // カメラが直交投影に切り替わったかチェック
-        if (camera instanceof THREE.OrthographicCamera) {
-          // ズーム領域の設定を実行
-          performRegionZoom(camera, x1, y1, x2, y2, currentControls);
-        } else {
-          // まだ切り替わっていない場合は少し待つ
-          setTimeout(performZoom, 50);
-        }
-      };
-      
-      setTimeout(performZoom, 100);
+      // 直交投影に切り替え（useEffectが状態変化を検知してズーム実行）
+      enableOrthographicCamera();
       return;
     }
     
     // 既存のカメラが直交投影カメラの場合は直接ズーム処理を実行
     if (camera instanceof THREE.OrthographicCamera) {
+      console.log('Already in ortho mode, performing zoom immediately...');
       performRegionZoom(camera, x1, y1, x2, y2, currentControls);
     }
-  }, [camera, controlsRef, controlsFromHook, setCameraView, isOrtho]);
+  }, [camera, controlsRef, controlsFromHook, enableOrthographicCamera, isOrtho]);
 
   // ズーム領域設定の実際の処理（再帰呼び出しを避けるため分離）
   const performRegionZoom = useCallback((
