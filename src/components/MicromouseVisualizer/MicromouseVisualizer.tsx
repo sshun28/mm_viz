@@ -230,6 +230,7 @@ interface MicromouseVisualizerProps {
   className?: string; // TailwindCSSなどのクラス名を受け取る
   style?: React.CSSProperties; // インラインスタイルも受け取れるように
   children?: React.ReactNode;
+  cameraRef?: React.MutableRefObject<CameraControlAPI | null>; // useCameraフック用のカメラref
 }
 
 // --- メインコンポーネント ---
@@ -247,10 +248,13 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
     className,
     style,
     children,
+    cameraRef, // 外部からのカメラref
   },
   ref
 ) => {
-  const cameraControlRef = useRef<CameraControlAPI | null>(null);
+  const internalCameraRef = useRef<CameraControlAPI | null>(null);
+  // 外部のcameraRefが提供されている場合はそれを使用、そうでなければ内部のrefを使用
+  const actualCameraRef = cameraRef || internalCameraRef;
 
   // 迷路データがない場合は早期リターン
   if (!mazeData) {
@@ -283,21 +287,21 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
   // 外部からカメラを操作できるAPIを公開
   useImperativeHandle(ref, () => ({
     setCameraView: (preset: CameraViewPreset) => {
-      if (cameraControlRef.current) {
-        cameraControlRef.current.setCameraView(preset);
+      if (actualCameraRef.current) {
+        actualCameraRef.current.setCameraView(preset);
       }
     },
     resetCamera: (preset?: CameraViewPreset) => {
-      if (cameraControlRef.current) {
-        cameraControlRef.current.resetCamera(preset);
+      if (actualCameraRef.current) {
+        actualCameraRef.current.resetCamera(preset);
       }
     },
     toggleCameraProjection: () => {
-      if (cameraControlRef.current) {
-        cameraControlRef.current.toggleCameraProjection();
+      if (actualCameraRef.current) {
+        actualCameraRef.current.toggleCameraProjection();
       }
     },
-  }), []);
+  }), [actualCameraRef]);
 
   return (
     <div 
@@ -359,7 +363,7 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
         )}
 
         {/* カメラコントロール */}
-        <CameraController ref={cameraControlRef} initialViewPreset={initialViewPreset} mazeSize={mazeSize} />
+        <CameraController ref={actualCameraRef} initialViewPreset={initialViewPreset} mazeSize={mazeSize} />
 
         {/* stats.jsによるパフォーマンスモニター */}
         <PerformanceMonitor enabled={showPerformanceStats} />

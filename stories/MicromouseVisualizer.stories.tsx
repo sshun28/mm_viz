@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react'; // useState と useEffect を追加
+import React, { useEffect, useState } from 'react'; // useState と useEffect を追加
 import type { Meta, StoryObj } from '@storybook/react';
-import MicromouseVisualizer, { MicromouseVisualizerAPI } from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
+import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
 import Mouse from '../src/components/MicromouseVisualizer/Mouse'; // Mouse をインポート
 import CellMarker from '../src/components/MicromouseVisualizer/CellMarker'; // CellMarker をインポート
 import TextLabel from '../src/components/MicromouseVisualizer/TextLabel'; // TextLabel をインポート
@@ -8,7 +8,6 @@ import { MazeData, MouseState, CameraViewPreset } from '../src/types';
 import { CELL_SIZE } from '../src/config/constants';
 import { loadMazeFromUrl, parseMazeFile } from '../src/utils/mazeLoader'; // 追加: マイクロマウス迷路読み込みユーティリティ
 import { useCamera } from '../src/hooks/useCamera';
-import CameraController from '../src/components/MicromouseVisualizer/CameraController';
 
 // --- Helper Function ---
 // セル座標を物理座標に変換するヘルパー関数
@@ -604,37 +603,14 @@ export const Japan2023HefWithPath: Story = {
   }
 };
 
-// カメラ操作ボタン付きのストーリー
+
+// カメラ操作ボタン付きのストーリー（useCameraフックを使用）
 export const WithCameraControls: Story = {
   args: {
     ...Default16x16.args,
   },
   render: (args) => {
-    const visualizerRef = useRef<MicromouseVisualizerAPI>(null);
-
-    const handleTopView = () => {
-      visualizerRef.current?.setCameraView('top');
-    };
-
-    const handleAngleView = () => {
-      visualizerRef.current?.setCameraView('angle');
-    };
-
-    const handleSideView = () => {
-      visualizerRef.current?.setCameraView('side');
-    };
-
-    const handleOrthoView = () => {
-      visualizerRef.current?.setCameraView('ortho');
-    };
-
-    const handleResetCamera = () => {
-      visualizerRef.current?.resetCamera();
-    };
-
-    const handleToggleProjection = () => {
-      visualizerRef.current?.toggleCameraProjection();
-    };
+    const { cameraRef, setCameraView, resetCamera, toggleCameraProjection } = useCamera();
 
     return (
       <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
@@ -654,128 +630,6 @@ export const WithCameraControls: Story = {
         }}>
           <div style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>
             Camera Controls
-          </div>
-          <button
-            onClick={handleTopView}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Top View
-          </button>
-          <button
-            onClick={handleAngleView}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#2196F3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Angle View
-          </button>
-          <button
-            onClick={handleSideView}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#FF9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Side View
-          </button>
-          <button
-            onClick={handleOrthoView}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#9C27B0',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Orthographic
-          </button>
-          <button
-            onClick={handleResetCamera}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#607D8B',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Reset Camera
-          </button>
-          <button
-            onClick={handleToggleProjection}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: '#795548',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            Toggle Projection
-          </button>
-        </div>
-
-        {/* Visualizer */}
-        <MicromouseVisualizer ref={visualizerRef} {...args}>
-          <Mouse mouseState={sampleInitialMouseState16} />
-        </MicromouseVisualizer>
-      </div>
-    );
-  },
-};
-
-// useCameraフックを使った例
-export const WithUseCameraHook: Story = {
-  args: {
-    ...Default16x16.args,
-  },
-  render: (args) => {
-    const { cameraRef, setCameraView, resetCamera, toggleCameraProjection } = useCamera();
-
-    return (
-      <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
-        {/* カメラ操作ボタンパネル */}
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          padding: '15px',
-          borderRadius: '8px',
-          border: '1px solid #333'
-        }}>
-          <div style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>
-            useCamera Hook
           </div>
           <button
             onClick={() => setCameraView('top')}
@@ -864,8 +718,7 @@ export const WithUseCameraHook: Story = {
         </div>
 
         {/* Visualizer with camera ref */}
-        <MicromouseVisualizer {...args}>
-          <CameraController ref={cameraRef} initialViewPreset={args.initialViewPreset} mazeSize={sampleMazeData16.size} />
+        <MicromouseVisualizer {...args} cameraRef={cameraRef}>
           <Mouse mouseState={sampleInitialMouseState16} />
         </MicromouseVisualizer>
       </div>
