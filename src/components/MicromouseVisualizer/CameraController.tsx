@@ -338,17 +338,41 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     const aspect = size.width / size.height;
     const padding = Math.max(regionWidth, regionHeight) * 0.1; // 10%のパディング
     
+    // 指定された範囲を確実に含むように計算
+    const paddedRegionWidth = regionWidth + padding;
+    const paddedRegionHeight = regionHeight + padding;
+    
     let adjustedWidth, adjustedHeight;
     
     if (aspect >= 1) {
-      // 横長の場合
-      adjustedWidth = Math.max(regionWidth, regionHeight / aspect) + padding;
-      adjustedHeight = adjustedWidth / aspect;
-    } else {
-      // 縦長の場合
-      adjustedHeight = Math.max(regionHeight, regionWidth * aspect) + padding;
+      // 横長画面の場合：縦方向を基準にして横方向を調整
+      adjustedHeight = paddedRegionHeight;
       adjustedWidth = adjustedHeight * aspect;
+      
+      // 横方向が足りない場合は横方向を基準に再計算
+      if (adjustedWidth < paddedRegionWidth) {
+        adjustedWidth = paddedRegionWidth;
+        adjustedHeight = adjustedWidth / aspect;
+      }
+    } else {
+      // 縦長画面の場合：横方向を基準にして縦方向を調整
+      adjustedWidth = paddedRegionWidth;
+      adjustedHeight = adjustedWidth / aspect;
+      
+      // 縦方向が足りない場合は縦方向を基準に再計算
+      if (adjustedHeight < paddedRegionHeight) {
+        adjustedHeight = paddedRegionHeight;
+        adjustedWidth = adjustedHeight * aspect;
+      }
     }
+    
+    console.log('Range calculation details:', {
+      originalRegion: { width: regionWidth, height: regionHeight },
+      padding,
+      paddedRegion: { width: paddedRegionWidth, height: paddedRegionHeight },
+      screenAspect: aspect,
+      finalAdjusted: { width: adjustedWidth, height: adjustedHeight }
+    });
     
     // 既存のカメラの投影設定を更新
     // 問題の修正: 直交投影カメラの投影範囲は、カメラ位置を基準とした相対座標で設定する

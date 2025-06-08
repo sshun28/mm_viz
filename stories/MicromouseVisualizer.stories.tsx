@@ -744,7 +744,7 @@ export const WithCameraControls: Story = {
             Zoom Goal Area
           </button>
           <button
-            onClick={() => zoomToRegion(1.08, 1.08, 1.35, 1.35)}
+            onClick={() => zoomToRegion(0, 0, 0.09 * 16, 0.09 * 16)}
             style={{
               padding: '8px 12px',
               backgroundColor: '#009688',
@@ -755,31 +755,13 @@ export const WithCameraControls: Story = {
               fontSize: '12px'
             }}
           >
-            Zoom Corner
+            Zoom Whole
           </button>
         </div>
 
         {/* Visualizer with camera ref */}
         <MicromouseVisualizer {...args} cameraRef={cameraRef}>
           <Mouse mouseState={sampleInitialMouseState16} />
-          
-          {/* 座標検証用マーカー: 0.135, 0.135の位置 */}
-          <mesh position={[0.135, 0.135, 0.02]}>
-            <sphereGeometry args={[0.01, 16, 8]} />
-            <meshBasicMaterial color="#ff0000" />
-          </mesh>
-          
-          {/* 座標検証用マーカー: 0,0の位置（参考） */}
-          <mesh position={[0, 0, 0.02]}>
-            <sphereGeometry args={[0.01, 16, 8]} />
-            <meshBasicMaterial color="#00ff00" />
-          </mesh>
-          
-          {/* 座標検証用マーカー: 0.27, 0.27の位置（参考） */}
-          <mesh position={[0.27, 0.27, 0.02]}>
-            <sphereGeometry args={[0.01, 16, 8]} />
-            <meshBasicMaterial color="#0000ff" />
-          </mesh>
         </MicromouseVisualizer>
       </div>
     );
