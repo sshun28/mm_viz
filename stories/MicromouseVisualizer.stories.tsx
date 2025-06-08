@@ -610,7 +610,7 @@ export const WithCameraControls: Story = {
     ...Default16x16.args,
   },
   render: (args) => {
-    const { cameraRef, setCameraView, resetCamera, toggleCameraProjection } = useCamera();
+    const { cameraRef, setCameraView, resetCamera, toggleCameraProjection, zoomToRegion } = useCamera();
 
     return (
       <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
@@ -714,6 +714,48 @@ export const WithCameraControls: Story = {
             }}
           >
             Toggle Projection
+          </button>
+          <button
+            onClick={() => zoomToRegion(0, 0, 0.27, 0.27)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#E91E63',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Zoom Start Area
+          </button>
+          <button
+            onClick={() => zoomToRegion(0.54, 0.54, 0.81, 0.81)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#3F51B5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Zoom Goal Area
+          </button>
+          <button
+            onClick={() => zoomToRegion(1.08, 1.08, 1.35, 1.35)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#009688',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Zoom Corner
           </button>
         </div>
 

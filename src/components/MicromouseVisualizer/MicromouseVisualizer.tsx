@@ -214,6 +214,7 @@ export interface MicromouseVisualizerAPI {
   setCameraView: (preset: CameraViewPreset) => void;
   resetCamera: (preset?: CameraViewPreset) => void;
   toggleCameraProjection: () => void;
+  zoomToRegion: (x1: number, y1: number, x2: number, y2: number) => void;
 }
 
 // --- Props定義 ---
@@ -299,6 +300,11 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
     toggleCameraProjection: () => {
       if (actualCameraRef.current) {
         actualCameraRef.current.toggleCameraProjection();
+      }
+    },
+    zoomToRegion: (x1: number, y1: number, x2: number, y2: number) => {
+      if (actualCameraRef.current) {
+        actualCameraRef.current.zoomToRegion(x1, y1, x2, y2);
       }
     },
   }), [actualCameraRef]);
