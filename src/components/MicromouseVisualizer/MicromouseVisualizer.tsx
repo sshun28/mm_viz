@@ -1,11 +1,11 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Line } from '@react-three/drei'; // Lineコンポーネントをインポート
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import { MazeData, CameraViewPreset } from '../../types';
 import { CELL_SIZE, cameraPresets } from '../../config/constants';
-import CameraController from './CameraController';
+import CameraController, { CameraControlAPI } from './CameraController';
 import Maze from './Maze';
 import CellMarker from './CellMarker';
 
@@ -209,6 +209,13 @@ const CustomGrid: React.FC<{
   return gridLines;
 };
 
+// --- Visualizer API型定義 ---
+export interface MicromouseVisualizerAPI {
+  setCameraView: (preset: CameraViewPreset) => void;
+  resetCamera: (preset?: CameraViewPreset) => void;
+  toggleCameraProjection: () => void;
+}
+
 // --- Props定義 ---
 interface MicromouseVisualizerProps {
   mazeData?: MazeData;
@@ -226,20 +233,24 @@ interface MicromouseVisualizerProps {
 }
 
 // --- メインコンポーネント ---
-export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
-  mazeData,
-  width = '100%',
-  height = '100%',
-  backgroundColor = '#181818',
-  showGridHelper = false,
-  showAxesHelper = false,
-  showPerformanceStats = false, // デフォルトはOFF
-  showDiagonalGrid = true, // デフォルトは表示する
-  initialViewPreset = 'angle',
-  className,
-  style,
-  children,
-}) => {
+export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, MicromouseVisualizerProps>((
+  {
+    mazeData,
+    width = '100%',
+    height = '100%',
+    backgroundColor = '#181818',
+    showGridHelper = false,
+    showAxesHelper = false,
+    showPerformanceStats = false, // デフォルトはOFF
+    showDiagonalGrid = true, // デフォルトは表示する
+    initialViewPreset = 'angle',
+    className,
+    style,
+    children,
+  },
+  ref
+) => {
+  const cameraControlRef = useRef<CameraControlAPI | null>(null);
 
   // 迷路データがない場合は早期リターン
   if (!mazeData) {
@@ -268,6 +279,25 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
   const mazePhysicalSize = mazeSize * CELL_SIZE;
 
   const initialCameraPosition = cameraPresets[initialViewPreset].position as [number, number, number];
+
+  // 外部からカメラを操作できるAPIを公開
+  useImperativeHandle(ref, () => ({
+    setCameraView: (preset: CameraViewPreset) => {
+      if (cameraControlRef.current) {
+        cameraControlRef.current.setCameraView(preset);
+      }
+    },
+    resetCamera: (preset?: CameraViewPreset) => {
+      if (cameraControlRef.current) {
+        cameraControlRef.current.resetCamera(preset);
+      }
+    },
+    toggleCameraProjection: () => {
+      if (cameraControlRef.current) {
+        cameraControlRef.current.toggleCameraProjection();
+      }
+    },
+  }), []);
 
   return (
     <div 
@@ -329,7 +359,7 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
         )}
 
         {/* カメラコントロール */}
-        <CameraController initialViewPreset={initialViewPreset} mazeSize={mazeSize} />
+        <CameraController ref={cameraControlRef} initialViewPreset={initialViewPreset} mazeSize={mazeSize} />
 
         {/* stats.jsによるパフォーマンスモニター */}
         <PerformanceMonitor enabled={showPerformanceStats} />
@@ -337,6 +367,8 @@ export const MicromouseVisualizer: React.FC<MicromouseVisualizerProps> = ({
       </Canvas>
     </div>
   );
-};
+});
+
+MicromouseVisualizer.displayName = 'MicromouseVisualizer';
 
 export default MicromouseVisualizer;

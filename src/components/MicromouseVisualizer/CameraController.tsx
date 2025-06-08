@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
 import { useThree, RootState } from '@react-three/fiber';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { OrbitControls } from '@react-three/drei';
@@ -6,11 +6,20 @@ import * as THREE from 'three';
 import { cameraPresets, CELL_SIZE } from '../../config/constants';
 import { CameraViewPreset } from '../../types';
 
-// カメラコントロール用コンポーネント
-const CameraController: React.FC<{
+// カメラコントロールAPIの型定義
+export interface CameraControlAPI {
+  setCameraView: (preset: CameraViewPreset) => void;
+  resetCamera: (preset?: CameraViewPreset) => void;
+  toggleCameraProjection: () => void;
+}
+
+interface CameraControllerProps {
   initialViewPreset?: CameraViewPreset;
   mazeSize?: number;
-}> = ({ initialViewPreset = 'angle', mazeSize = 16 }) => {
+}
+
+// カメラコントロール用コンポーネント
+const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ initialViewPreset = 'angle', mazeSize = 16 }, ref) => {
   const { camera, controls: controlsFromHook, set, size } = useThree<RootState>();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const mazeCenterRef = useRef<THREE.Vector3>(
@@ -193,6 +202,11 @@ const CameraController: React.FC<{
     isOrtho
   ]);
 
+  // カメラリセット機能
+  const resetCamera = useCallback((presetKey: CameraViewPreset = initialViewPreset) => {
+    setCameraView(presetKey);
+  }, [initialViewPreset, setCameraView]);
+
   // カメラのパースペクティブを切り替える関数
   const toggleCameraProjection = useCallback(() => {
     if (isOrtho) {
@@ -202,16 +216,18 @@ const CameraController: React.FC<{
     }
   }, [isOrtho, setCameraView]);
 
+  // 外部からカメラを操作できるAPIを公開
+  useImperativeHandle(ref, () => ({
+    setCameraView,
+    resetCamera,
+    toggleCameraProjection,
+  }), [setCameraView, resetCamera, toggleCameraProjection]);
+
   // 初期設定
   useEffect(() => {
     setCameraView(initialViewPreset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialViewPreset]);
-
-  // カメラリセット機能
-  const resetCamera = useCallback((presetKey: CameraViewPreset = initialViewPreset) => {
-    setCameraView(presetKey);
-  }, [initialViewPreset, setCameraView]);
 
   // キーボードイベントリスナー
   useEffect(() => {
@@ -256,6 +272,8 @@ const CameraController: React.FC<{
       enableRotate={!isOrtho} // 直交投影カメラの場合、回転を無効化
     />
   );
-};
+});
+
+CameraController.displayName = 'CameraController';
 
 export default CameraController;
