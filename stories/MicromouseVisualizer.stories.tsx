@@ -762,6 +762,80 @@ export const WithCameraControls: Story = {
         {/* Visualizer with camera ref */}
         <MicromouseVisualizer {...args} cameraRef={cameraRef}>
           <Mouse mouseState={sampleInitialMouseState16} />
+          
+          {/* Zoom Start Area範囲マーカー (0, 0, 0.27, 0.27) - 3x3セル */}
+          {Array.from({ length: 3 }, (_, y) =>
+            Array.from({ length: 3 }, (_, x) => (
+              <CellMarker
+                key={`start-${x}-${y}`}
+                cell={{ x, y }}
+                color="#00ff00"
+                opacity={0.4}
+                type="square"
+                height={0.001}
+              />
+            ))
+          ).flat()}
+          
+          {/* Zoom Goal Area範囲マーカー (0.54, 0.54, 0.81, 0.81) - 6-8セル */}
+          {Array.from({ length: 3 }, (_, y) =>
+            Array.from({ length: 3 }, (_, x) => (
+              <CellMarker
+                key={`goal-${x}-${y}`}
+                cell={{ x: x + 6, y: y + 6 }}
+                color="#ff0000"
+                opacity={0.4}
+                type="square"
+                height={0.001}
+              />
+            ))
+          ).flat()}
+          
+          {/* Zoom Whole範囲マーカー - 迷路全体の境界線 */}
+          {/* 上辺 */}
+          {Array.from({ length: 16 }, (_, x) => (
+            <CellMarker
+              key={`whole-top-${x}`}
+              cell={{ x, y: 15 }}
+              color="#0000ff"
+              opacity={0.3}
+              type="square"
+              height={0.001}
+            />
+          ))}
+          {/* 下辺 */}
+          {Array.from({ length: 16 }, (_, x) => (
+            <CellMarker
+              key={`whole-bottom-${x}`}
+              cell={{ x, y: 0 }}
+              color="#0000ff"
+              opacity={0.3}
+              type="square"
+              height={0.001}
+            />
+          ))}
+          {/* 左辺 */}
+          {Array.from({ length: 14 }, (_, y) => (
+            <CellMarker
+              key={`whole-left-${y}`}
+              cell={{ x: 0, y: y + 1 }}
+              color="#0000ff"
+              opacity={0.3}
+              type="square"
+              height={0.001}
+            />
+          ))}
+          {/* 右辺 */}
+          {Array.from({ length: 14 }, (_, y) => (
+            <CellMarker
+              key={`whole-right-${y}`}
+              cell={{ x: 15, y: y + 1 }}
+              color="#0000ff"
+              opacity={0.3}
+              type="square"
+              height={0.001}
+            />
+          ))}
         </MicromouseVisualizer>
       </div>
     );

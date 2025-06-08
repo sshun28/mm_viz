@@ -15,6 +15,7 @@ export { default as TrajectoryAnimationController } from './components/Micromous
 // Hook exports
 export { useTrajectory } from './providers/TrajectoryProvider';
 export { default as usePlaybackControls } from './hooks/usePlaybackControls';
+export { useCamera } from './hooks/useCamera';
 
 // Type exports
 export * from './types';
