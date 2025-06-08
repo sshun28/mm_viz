@@ -100,6 +100,9 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     const mazeCenterOffset = mazeSize * CELL_SIZE / 2;
     orthoCamera.position.set(mazeCenterOffset, mazeCenterOffset, mazeSize * CELL_SIZE * 2);
     
+    // カメラのup方向を設定（Z軸が上）
+    orthoCamera.up.set(0, 0, 1);
+    
     // 迷路の中心をターゲットとする
     const target = new THREE.Vector3(mazeCenterOffset, mazeCenterOffset, 0);
     orthoCamera.lookAt(target);
@@ -107,12 +110,31 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     // react-three-fiberのsetメソッドを使って新しいカメラを設定
     set({ camera: orthoCamera });
     
-    // コントロールの更新
+    // コントロールの更新とリセット
     const currentControls = controlsRef.current || controlsFromHook;
     if (currentControls) {
+      // OrbitControlsをリセットして傾きを解消
+      if ('reset' in currentControls && typeof (currentControls as any).reset === 'function') {
+        (currentControls as any).reset();
+      }
+      
+      // ターゲットを設定
       if ('target' in currentControls && typeof (currentControls as any).target?.copy === 'function') {
         (currentControls as any).target.copy(target);
+        (currentControls as any).target.z = 0; // Z座標を0に固定
       }
+      
+      // カメラオブジェクトを更新
+      if ('object' in currentControls) {
+        (currentControls as any).object = orthoCamera;
+      }
+      
+      // 位置と向きを再設定
+      orthoCamera.position.set(mazeCenterOffset, mazeCenterOffset, mazeSize * CELL_SIZE * 2);
+      orthoCamera.up.set(0, 0, 1);
+      orthoCamera.lookAt(target);
+      
+      // 更新
       if (typeof (currentControls as any).update === 'function') {
         (currentControls as any).update();
       }
@@ -139,6 +161,7 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     perspCamera.position.copy(position);
     perspCamera.quaternion.copy(quaternion);
     perspCamera.up.copy(up);
+    
     
     // react-three-fiberのsetメソッドを使って新しいカメラを設定
     set({ camera: perspCamera });
@@ -237,53 +260,62 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     
     // 直交投影モードでない場合は切り替える
     if (!isOrtho) {
-      // OrbitControlsの状態を保存
-      const wasEnabled = currentControls ? (currentControls as any).enabled : true;
+      console.log('Switching to orthographic mode...');
       
-      // 直交投影に切り替え
-      enableOrthographicCamera();
+      // OrbitControlsをリセットしてから直交投影に切り替える
+      if (currentControls && 'reset' in currentControls && typeof (currentControls as any).reset === 'function') {
+        (currentControls as any).reset();
+      }
       
-      // カメラ切り替えの完了を待って再実行
-      // useFrameループを使って確実にカメラが切り替わるのを待つ
-      const checkAndRetry = () => {
-        // カメラが切り替わっているかチェック
-        if (camera instanceof THREE.OrthographicCamera && isOrtho) {
-          // OrbitControlsを完全にリセット
-          if (currentControls) {
-            // 一時的に無効化
-            (currentControls as any).enabled = false;
-            
-            // 内部状態をリセット
-            if (typeof (currentControls as any).reset === 'function') {
-              (currentControls as any).reset();
-            }
-            
-            // オブジェクトを再設定
-            if ('object' in currentControls) {
-              (currentControls as any).object = camera;
-            }
-            
-            // 有効化
-            (currentControls as any).enabled = wasEnabled;
-          }
-          
-          // zoomToRegionを再実行
-          zoomToRegion(x1, y1, x2, y2);
+      // setCameraViewを使って直交投影に切り替える
+      setCameraView('ortho');
+      
+      // 状態の更新を待ってからズーム領域を設定
+      const performZoom = () => {
+        // カメラが直交投影に切り替わったかチェック
+        if (camera instanceof THREE.OrthographicCamera) {
+          // ズーム領域の設定を実行
+          performRegionZoom(camera, x1, y1, x2, y2, currentControls);
         } else {
           // まだ切り替わっていない場合は少し待つ
-          setTimeout(checkAndRetry, 50);
+          setTimeout(performZoom, 50);
         }
       };
       
-      setTimeout(checkAndRetry, 50);
+      setTimeout(performZoom, 100);
       return;
     }
     
-    // 既存のカメラが直交投影カメラであることを確認
-    if (!(camera instanceof THREE.OrthographicCamera)) {
-      return;
+    // 既存のカメラが直交投影カメラの場合は直接ズーム処理を実行
+    if (camera instanceof THREE.OrthographicCamera) {
+      performRegionZoom(camera, x1, y1, x2, y2, currentControls);
     }
+  }, [camera, controlsRef, controlsFromHook, setCameraView, isOrtho]);
+
+  // ズーム領域設定の実際の処理（再帰呼び出しを避けるため分離）
+  const performRegionZoom = useCallback((
+    orthoCamera: THREE.OrthographicCamera,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    currentControls: any
+  ) => {
+    // 領域の中心とサイズを計算
+    const centerX = (x1 + x2) / 2;
+    const centerY = (y1 + y2) / 2;
+    const regionWidth = Math.abs(x2 - x1);
+    const regionHeight = Math.abs(y2 - y1);
     
+    console.log('performRegionZoom:', {
+      input: { x1, y1, x2, y2 },
+      calculated: { centerX, centerY, regionWidth, regionHeight }
+    });
+    
+    // Three.jsの直交投影の座標系を確認
+    // left/right: X軸 (左右)
+    // top/bottom: Y軸 (上下)
+    // 注意: Three.jsのtop/bottomは数学的なY軸と同じ向き（topが正の値、bottomが負の値）
     // OrbitControlsを一時的に無効化
     const wasEnabled = currentControls ? (currentControls as any).enabled : true;
     if (currentControls) {
@@ -294,70 +326,110 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     const aspect = size.width / size.height;
     const padding = Math.max(regionWidth, regionHeight) * 0.1; // 10%のパディング
     
-    let left, right, top, bottom;
+    let adjustedWidth, adjustedHeight;
     
     if (aspect >= 1) {
       // 横長の場合
-      const adjustedWidth = Math.max(regionWidth, regionHeight / aspect) + padding;
-      const adjustedHeight = adjustedWidth / aspect;
-      
-      left = centerX - adjustedWidth / 2;
-      right = centerX + adjustedWidth / 2;
-      top = centerY + adjustedHeight / 2;
-      bottom = centerY - adjustedHeight / 2;
+      adjustedWidth = Math.max(regionWidth, regionHeight / aspect) + padding;
+      adjustedHeight = adjustedWidth / aspect;
     } else {
       // 縦長の場合
-      const adjustedHeight = Math.max(regionHeight, regionWidth * aspect) + padding;
-      const adjustedWidth = adjustedHeight * aspect;
-      
-      left = centerX - adjustedWidth / 2;
-      right = centerX + adjustedWidth / 2;
-      top = centerY + adjustedHeight / 2;
-      bottom = centerY - adjustedHeight / 2;
+      adjustedHeight = Math.max(regionHeight, regionWidth * aspect) + padding;
+      adjustedWidth = adjustedHeight * aspect;
     }
     
     // 既存のカメラの投影設定を更新
-    camera.left = left;
-    camera.right = right;
-    camera.top = top;
-    camera.bottom = bottom;
-    camera.updateProjectionMatrix();
+    // 問題の修正: 直交投影カメラの投影範囲は、カメラ位置を基準とした相対座標で設定する
+    // カメラは(centerX, centerY, height)の位置から(centerX, centerY, 0)を見下ろしているので
+    // 投影範囲は中心からの相対距離で設定する必要がある
+    orthoCamera.left = -adjustedWidth / 2;
+    orthoCamera.right = adjustedWidth / 2;
+    orthoCamera.top = adjustedHeight / 2;
+    orthoCamera.bottom = -adjustedHeight / 2;
+    orthoCamera.updateProjectionMatrix();
+    
+    console.log('Camera projection bounds (fixed):', { 
+      left: -adjustedWidth / 2, 
+      right: adjustedWidth / 2, 
+      top: adjustedHeight / 2, 
+      bottom: -adjustedHeight / 2,
+      adjustedWidth,
+      adjustedHeight,
+      targetCenter: { centerX, centerY }
+    });
     
     // カメラの位置を設定（真上から見下ろす）
     const cameraHeight = mazeSize * CELL_SIZE * 2;
-    camera.position.set(centerX, centerY, cameraHeight);
+    orthoCamera.position.set(centerX, centerY, cameraHeight);
+    
+    // カメラのup方向を設定（Y軸が画面上方向）
+    orthoCamera.up.set(0, 1, 0);
     
     // カメラのターゲットを領域の中心に設定
     const target = new THREE.Vector3(centerX, centerY, 0);
-    camera.lookAt(target);
+    orthoCamera.lookAt(target);
+    
+    // カメラの向きを強制的に修正（X軸が画面右方向、Y軸が画面上方向になるように）
+    // 直交投影で真上から見下ろす場合の正しい向き
+    orthoCamera.matrix.lookAt(
+      orthoCamera.position,
+      target,
+      new THREE.Vector3(0, 1, 0) // up方向
+    );
+    orthoCamera.matrix.decompose(orthoCamera.position, orthoCamera.quaternion, orthoCamera.scale);
+    orthoCamera.matrixWorldNeedsUpdate = true;
+    
+    console.log('Camera setup:', {
+      position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
+      target: { x: target.x, y: target.y, z: target.z },
+      center: { centerX, centerY }
+    });
     
     // OrbitControlsのターゲットと状態を更新
     if (currentControls) {
+      // 一時的にOrbitControlsを完全に無効化してテスト
+      console.log('Before OrbitControls update - Camera position:', {
+        x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z
+      });
+      console.log('Before OrbitControls update - Target:', {
+        x: target.x, y: target.y, z: target.z
+      });
+      
       // ターゲットを設定
       if ('target' in currentControls && typeof (currentControls as any).target?.copy === 'function') {
         (currentControls as any).target.copy(target);
         (currentControls as any).target.z = 0; // Z座標を0に固定
       }
       
-      // OrbitControlsの内部状態をリセット
-      if (typeof (currentControls as any).reset === 'function') {
-        (currentControls as any).reset();
-      }
-      
       // オブジェクトの再設定を確実に行う
       if ('object' in currentControls) {
-        (currentControls as any).object = camera;
+        (currentControls as any).object = orthoCamera;
       }
+      
+      // カメラの位置とターゲットを設定
+      orthoCamera.position.set(centerX, centerY, cameraHeight);
+      
+      // カメラの向きを正しく設定（Z-up座標系）
+      orthoCamera.up.set(0, 0, 1); // Z軸が上方向（プロジェクトの座標系に合わせる）
+      orthoCamera.lookAt(target);
+      
+      console.log('After explicit camera setup:', {
+        position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
+        target: { x: target.x, y: target.y, z: target.z },
+        quaternion: orthoCamera.quaternion
+      });
       
       // 更新
       if (typeof (currentControls as any).update === 'function') {
         (currentControls as any).update();
       }
       
-      // OrbitControlsを再有効化
-      (currentControls as any).enabled = wasEnabled;
+      console.log('After OrbitControls update:', {
+        position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
+        cameraTarget: currentControls ? (currentControls as any).target : 'no target'
+      });
     }
-  }, [mazeSize, size.width, size.height, camera, controlsRef, controlsFromHook, enableOrthographicCamera, isOrtho]);
+  }, [mazeSize, size.width, size.height]);
 
   // 外部からカメラを操作できるAPIを公開
   useImperativeHandle(ref, () => ({

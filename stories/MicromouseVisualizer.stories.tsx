@@ -762,6 +762,24 @@ export const WithCameraControls: Story = {
         {/* Visualizer with camera ref */}
         <MicromouseVisualizer {...args} cameraRef={cameraRef}>
           <Mouse mouseState={sampleInitialMouseState16} />
+          
+          {/* 座標検証用マーカー: 0.135, 0.135の位置 */}
+          <mesh position={[0.135, 0.135, 0.02]}>
+            <sphereGeometry args={[0.01, 16, 8]} />
+            <meshBasicMaterial color="#ff0000" />
+          </mesh>
+          
+          {/* 座標検証用マーカー: 0,0の位置（参考） */}
+          <mesh position={[0, 0, 0.02]}>
+            <sphereGeometry args={[0.01, 16, 8]} />
+            <meshBasicMaterial color="#00ff00" />
+          </mesh>
+          
+          {/* 座標検証用マーカー: 0.27, 0.27の位置（参考） */}
+          <mesh position={[0.27, 0.27, 0.02]}>
+            <sphereGeometry args={[0.01, 16, 8]} />
+            <meshBasicMaterial color="#0000ff" />
+          </mesh>
         </MicromouseVisualizer>
       </div>
     );
