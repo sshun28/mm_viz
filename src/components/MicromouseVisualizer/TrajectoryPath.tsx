@@ -35,6 +35,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
 }) => {
   // DataProviderからデータを取得
   const trajectoryProfile = useData((state) => state.trajectoryProfile);
+  const isPlaying = useData((state) => state.isPlaying);
   
   // 高性能アニメーション用のref管理（共有）
   const { currentTimeRef } = useSharedTrajectoryAnimation();
@@ -158,7 +159,8 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       trajectoryProfile,
       sortedTimes,
       currentTime,
-      height
+      height,
+      isPlaying
     );
     
     // 線の軌跡を更新
@@ -225,15 +227,21 @@ function calculateTrajectoryPoints(
   trajectoryProfile: Map<number, any>,
   sortedTimes: number[],
   currentTime: number,
-  height: number
+  height: number,
+  isPlaying: boolean
 ): [number, number, number][] {
   // プロファイルが未定義または空の場合
   if (!trajectoryProfile || trajectoryProfile.size === 0 || sortedTimes.length === 0) {
     return [];
   }
   
-  // 現在時刻が最初の時刻以下の場合は軌跡を表示しない（停止時のリセット対応）
-  if (currentTime <= sortedTimes[0]) {
+  // 停止状態の場合は軌跡を表示しない
+  if (!isPlaying && currentTime <= 0) {
+    return [];
+  }
+  
+  // 現在時刻が最初の時刻より前の場合は軌跡を表示しない
+  if (currentTime < sortedTimes[0]) {
     return [];
   }
   

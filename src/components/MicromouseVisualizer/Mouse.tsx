@@ -37,6 +37,7 @@ const Mouse: React.FC<MouseProps> = ({
   console.log('Mouse component rendered');
   const dataMouseState = useData((state) => state.mouseState);
   const isPlaying = useData((state) => state.isPlaying);
+  const trajectoryProfile = useData((state) => state.trajectoryProfile);
   
   // 高性能アニメーション用のref管理（共有）
   const { currentMouseStateRef } = useSharedTrajectoryAnimation();
@@ -143,18 +144,21 @@ const Mouse: React.FC<MouseProps> = ({
   useFrame(() => {
     if (!mouseRef.current) return;
     
-    // アニメーション中は高性能なrefベースの状態を優先
-    // 静的な場合はpropsやZustandの状態を使用
+    // 軌道アニメーション関連の状態がある場合は、再生中・一時停止中問わずrefベースを優先
+    // 軌道データがない場合のみstaticMouseStateを使用
     let currentMouseState: MouseState;
     
-    if (isPlaying && currentMouseStateRef.current) {
-      // アニメーション中：refベースの状態を使用
+    // 軌道プロファイルが存在し、かつrefに有効な状態があるかチェック
+    const hasTrajectoryData = trajectoryProfile && trajectoryProfile.size > 0 && currentMouseStateRef.current;
+    
+    if (hasTrajectoryData) {
+      // 軌道データがある場合：refベースの状態を使用（再生中・一時停止中問わず）
       currentMouseState = currentMouseStateRef.current;
       if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
-        console.log('Animation state:', currentMouseState, 'isPlaying:', isPlaying);
+        console.log('Trajectory state:', currentMouseState, 'isPlaying:', isPlaying);
       }
     } else {
-      // 静的状態：propsやZustandの状態を使用
+      // 軌道データがない場合：propsやZustandの状態を使用
       currentMouseState = staticMouseState;
       if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
         console.log('Static state:', currentMouseState, 'isPlaying:', isPlaying);

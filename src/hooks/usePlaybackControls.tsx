@@ -49,7 +49,15 @@ export const usePlaybackControls = () => {
     stop();
     setIsPlaying(false);
     setCurrentTime(0);
-  }, [stop]);
+    
+    // refベースの時間もリセット
+    setAnimationTime(0);
+    
+    // 軌道の最初の位置にマウス状態を更新
+    if (trajectoryProfile && sortedTimestampsCurrent.length > 0) {
+      updateMouseStateForTime(0, trajectoryProfile, sortedTimestampsCurrent);
+    }
+  }, [stop, setAnimationTime, updateMouseStateForTime, trajectoryProfile, sortedTimestampsCurrent]);
 
   // シークバーの変更（デフォルトで一時停止）
   const handleSeek = useCallback((value: number, pauseAfterSeek: boolean = true) => {
