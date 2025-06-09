@@ -4,6 +4,7 @@ import MicromouseVisualizer from '../src/components/MicromouseVisualizer/Micromo
 import Mouse from '../src/components/MicromouseVisualizer/Mouse'; // Mouse をインポート
 import CellMarker from '../src/components/MicromouseVisualizer/CellMarker'; // CellMarker をインポート
 import TextLabel from '../src/components/MicromouseVisualizer/TextLabel'; // TextLabel をインポート
+import { DataProvider } from '../src/providers/DataProvider'; // DataProviderを追加
 import { MazeData, MouseState, CameraViewPreset } from '../src/types';
 import { CELL_SIZE } from '../src/config/constants';
 import { loadMazeFromUrl, parseMazeFile } from '../src/utils/mazeLoader'; // 追加: マイクロマウス迷路読み込みユーティリティ
@@ -131,12 +132,14 @@ const DynamicMazeLoader: React.FC<DynamicMazeLoaderProps> = ({
   };
 
   return (
-    <MicromouseVisualizer
-      mazeData={mazeData}
-      {...props}
+    <DataProvider 
+      initialMazeData={mazeData}
+      initialMouseState={initialMouseState}
     >
-      {children ? children : <Mouse mouseState={initialMouseState} />}
-    </MicromouseVisualizer>
+      <MicromouseVisualizer {...props}>
+        {children ? children : <Mouse />}
+      </MicromouseVisualizer>
+    </DataProvider>
   );
 };
 
@@ -174,7 +177,6 @@ const meta: Meta<typeof MicromouseVisualizer> = {
   },
   tags: ['autodocs'],
   argTypes: {
-    mazeData: { control: 'object' },
     width: { control: 'number' },
     height: { control: 'number' },
     backgroundColor: { control: 'color' },
@@ -198,7 +200,6 @@ type Story = StoryObj<typeof meta>;
 // デフォルトのストーリー: 16x16 迷路とマウス
 export const Default16x16: Story = {
   args: { // args にはコンポーネントの Props を指定
-    mazeData: sampleMazeData16,
     width: 800,
     height: 600,
     showGridHelper: true,
@@ -206,9 +207,14 @@ export const Default16x16: Story = {
     initialViewPreset: 'angle',
   },
   render: (args) => (
-    <MicromouseVisualizer {...args}>
-      <Mouse mouseState={sampleInitialMouseState16} />
-    </MicromouseVisualizer>
+    <DataProvider 
+      initialMazeData={sampleMazeData16}
+      initialMouseState={sampleInitialMouseState16}
+    >
+      <MicromouseVisualizer {...args}>
+        <Mouse />
+      </MicromouseVisualizer>
+    </DataProvider>
   ),
 };
 
@@ -244,7 +250,6 @@ export const NoHelpers16x16: Story = {
 export const SmallMaze4x4: Story = {
     args: {
       // Default16x16.args から必要な props のみコピー
-      mazeData: sampleMazeData4,
       width: Default16x16.args!.width,
       height: Default16x16.args!.height,
       showGridHelper: Default16x16.args!.showGridHelper,
@@ -253,27 +258,32 @@ export const SmallMaze4x4: Story = {
       backgroundColor: Default16x16.args!.backgroundColor,
     },
     render: (args) => (
+      <DataProvider 
+        initialMazeData={sampleMazeData4}
+        initialMouseState={sampleInitialMouseState4}
+      >
         <MicromouseVisualizer {...args}>
-          <Mouse mouseState={sampleInitialMouseState4} />
+          <Mouse />
         </MicromouseVisualizer>
-      ),
+      </DataProvider>
+    ),
 };
 
 // マウスなし (children を渡さない)
 export const NoMouse: Story = {
      args: {
       ...Default16x16.args, // Default の args を継承
-      // initialMouseState: undefined, // 削除済み
     },
     render: (args) => (
+      <DataProvider initialMazeData={sampleMazeData16}>
         <MicromouseVisualizer {...args} />
-      ),
+      </DataProvider>
+    ),
 };
 
 // 迷路データなし (Loading 表示の確認)
 export const NoMazeData: Story = {
      args: { // args にはコンポーネントの Props を指定
-      mazeData: undefined,
       width: 400,
       height: 300,
       backgroundColor: '#cccccc',
@@ -290,36 +300,41 @@ export const WithCustomCellMarkers: Story = {
     ...Default16x16.args,
   },
   render: (args) => (
-    <MicromouseVisualizer {...args}>
-      <Mouse mouseState={sampleInitialMouseState16} />
-      {/* カスタムのスタートマーカー (円形) */}
-      <CellMarker 
-        cell={{ x: 0, y: 0 }}
-        color="#00ff00"
-        opacity={0.9}
-        scale={0.7}
-        type="circle"
-      />
-      {/* カスタムのゴールマーカー (ひし形) */}
-      {sampleMazeData16.goal.map((goalCell, index) => (
-        <CellMarker
-          key={`custom-goal-${index}`}
-          cell={goalCell}
-          color="#ff00ff"
-          opacity={0.8}
+    <DataProvider 
+      initialMazeData={sampleMazeData16}
+      initialMouseState={sampleInitialMouseState16}
+    >
+      <MicromouseVisualizer {...args}>
+        <Mouse />
+        {/* カスタムのスタートマーカー (円形) */}
+        <CellMarker 
+          cell={{ x: 0, y: 0 }}
+          color="#00ff00"
+          opacity={0.9}
           scale={0.7}
-          type="diamond"
-          height={0.005} // 床から少し浮かせる
+          type="circle"
         />
-      ))}
-      {/* パスを示すマーカー */}
-      <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.5} type="square" />
-      <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
-      <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
-      <CellMarker cell={{ x: 3, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
-      <CellMarker cell={{ x: 3, y: 2 }} color="#0088ff" opacity={0.5} type="square" />
-      <CellMarker cell={{ x: 3, y: 3 }} color="#0088ff" opacity={0.5} type="square" />
-    </MicromouseVisualizer>
+        {/* カスタムのゴールマーカー (ひし形) */}
+        {sampleMazeData16.goal.map((goalCell, index) => (
+          <CellMarker
+            key={`custom-goal-${index}`}
+            cell={goalCell}
+            color="#ff00ff"
+            opacity={0.8}
+            scale={0.7}
+            type="diamond"
+            height={0.005} // 床から少し浮かせる
+          />
+        ))}
+        {/* パスを示すマーカー */}
+        <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.5} type="square" />
+        <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+        <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+        <CellMarker cell={{ x: 3, y: 1 }} color="#0088ff" opacity={0.5} type="square" />
+        <CellMarker cell={{ x: 3, y: 2 }} color="#0088ff" opacity={0.5} type="square" />
+        <CellMarker cell={{ x: 3, y: 3 }} color="#0088ff" opacity={0.5} type="square" />
+      </MicromouseVisualizer>
+    </DataProvider>
   ),
 };
 
@@ -329,72 +344,77 @@ export const WithTextLabels: Story = {
     ...Default16x16.args,
   },
   render: (args) => (
-    <MicromouseVisualizer {...args}>
-      <Mouse mouseState={sampleInitialMouseState16} />
-      
-      {/* セル番号を表示 */}
-      <TextLabel 
-        cell={{ x: 0, y: 0 }} 
-        text="Start" 
-        color="#ffffff"
-        backgroundColor="#008800" 
-        fontSize={0.07}
-        height={0.01}
-      />
-      
-      {/* ゴールにラベルを表示 */}
-      {sampleMazeData16.goal.map((goalCell, index) => (
-        <TextLabel
-          key={`goal-label-${index}`}
-          cell={goalCell}
-          text="Goal"
+    <DataProvider 
+      initialMazeData={sampleMazeData16}
+      initialMouseState={sampleInitialMouseState16}
+    >
+      <MicromouseVisualizer {...args}>
+        <Mouse />
+        
+        {/* セル番号を表示 */}
+        <TextLabel 
+          cell={{ x: 0, y: 0 }} 
+          text="Start" 
           color="#ffffff"
-          backgroundColor="#880000"
+          backgroundColor="#008800" 
           fontSize={0.07}
           height={0.01}
         />
-      ))}
-      
-      {/* 距離情報を表示する例 */}
-      <TextLabel cell={{ x: 1, y: 0 }} text="14" color="#aaaaff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 1, y: 1 }} text="13" color="#aaaaff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 2, y: 1 }} text="12" color="#aaaaff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 3, y: 1 }} text="11" color="#aaaaff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 3, y: 2 }} text="10" color="#aaaaff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 3, y: 3 }} text="9" color="#aaaaff" fontSize={0.06} height={0.005} />
-      
-      {/* 斜めに配置した文字の例 */}
-      <TextLabel 
-        cell={{ x: 5, y: 5 }} 
-        text="↑" 
-        color="#ffff00" 
-        fontSize={0.1}
-        height={0.02}
-        rotation={[0, 0, Math.PI / 2]} 
-      />
-      <TextLabel 
-        cell={{ x: 6, y: 5 }} 
-        text="→" 
-        color="#ffff00" 
-        fontSize={0.1}
-        height={0.02}
-      />
-      <TextLabel 
-        cell={{ x: 5, y: 6 }} 
-        text="←" 
-        color="#ffff00" 
-        fontSize={0.1}
-        height={0.02}
-      />
-      <TextLabel 
-        cell={{ x: 6, y: 6 }} 
-        text="↓" 
-        color="#ffff00" 
-        fontSize={0.1}
-        height={0.02}
-        rotation={[0, 0, -Math.PI / 2]} 
-      />
-    </MicromouseVisualizer>
+        
+        {/* ゴールにラベルを表示 */}
+        {sampleMazeData16.goal.map((goalCell, index) => (
+          <TextLabel
+            key={`goal-label-${index}`}
+            cell={goalCell}
+            text="Goal"
+            color="#ffffff"
+            backgroundColor="#880000"
+            fontSize={0.07}
+            height={0.01}
+          />
+        ))}
+        
+        {/* 距離情報を表示する例 */}
+        <TextLabel cell={{ x: 1, y: 0 }} text="14" color="#aaaaff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 1, y: 1 }} text="13" color="#aaaaff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 2, y: 1 }} text="12" color="#aaaaff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 3, y: 1 }} text="11" color="#aaaaff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 3, y: 2 }} text="10" color="#aaaaff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 3, y: 3 }} text="9" color="#aaaaff" fontSize={0.06} height={0.005} />
+        
+        {/* 斜めに配置した文字の例 */}
+        <TextLabel 
+          cell={{ x: 5, y: 5 }} 
+          text="↑" 
+          color="#ffff00" 
+          fontSize={0.1}
+          height={0.02}
+          rotation={[0, 0, Math.PI / 2]} 
+        />
+        <TextLabel 
+          cell={{ x: 6, y: 5 }} 
+          text="→" 
+          color="#ffff00" 
+          fontSize={0.1}
+          height={0.02}
+        />
+        <TextLabel 
+          cell={{ x: 5, y: 6 }} 
+          text="←" 
+          color="#ffff00" 
+          fontSize={0.1}
+          height={0.02}
+        />
+        <TextLabel 
+          cell={{ x: 6, y: 6 }} 
+          text="↓" 
+          color="#ffff00" 
+          fontSize={0.1}
+          height={0.02}
+          rotation={[0, 0, -Math.PI / 2]} 
+        />
+      </MicromouseVisualizer>
+    </DataProvider>
   ),
 };
 
@@ -404,55 +424,60 @@ export const WithLabelsAndMarkers: Story = {
     ...Default16x16.args,
   },
   render: (args) => (
-    <MicromouseVisualizer {...args}>
-      <Mouse mouseState={sampleInitialMouseState16} />
-      
-      {/* スタート位置のマーカーとラベル */}
-      <CellMarker 
-        cell={{ x: 0, y: 0 }}
-        color="#00aa00"
-        opacity={0.7}
-        scale={0.8}
-        type="square"
-      />
-      <TextLabel 
-        cell={{ x: 0, y: 0 }} 
-        text="S" 
-        color="#ffffff" 
-        fontSize={0.08}
-        height={0.01}
-      />
-      
-      {/* ゴール位置のマーカーとラベル */}
-      {sampleMazeData16.goal.map((goalCell, index) => (
-        <React.Fragment key={`goal-${index}`}>
-          <CellMarker
-            cell={goalCell}
-            color="#aa0000"
-            opacity={0.7}
-            scale={0.8}
-            type="square"
-          />
-          <TextLabel 
-            cell={goalCell} 
-            text="G" 
-            color="#ffffff" 
-            fontSize={0.08}
-            height={0.01}
-          />
-        </React.Fragment>
-      ))}
-      
-      {/* 探索済みセルを示す例 */}
-      <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.3} type="square" />
-      <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
-      <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
-      
-      {/* 各セルの訪問回数を示す例 */}
-      <TextLabel cell={{ x: 1, y: 0 }} text="2" color="#ffffff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 1, y: 1 }} text="3" color="#ffffff" fontSize={0.06} height={0.005} />
-      <TextLabel cell={{ x: 2, y: 1 }} text="1" color="#ffffff" fontSize={0.06} height={0.005} />
-    </MicromouseVisualizer>
+    <DataProvider 
+      initialMazeData={sampleMazeData16}
+      initialMouseState={sampleInitialMouseState16}
+    >
+      <MicromouseVisualizer {...args}>
+        <Mouse />
+        
+        {/* スタート位置のマーカーとラベル */}
+        <CellMarker 
+          cell={{ x: 0, y: 0 }}
+          color="#00aa00"
+          opacity={0.7}
+          scale={0.8}
+          type="square"
+        />
+        <TextLabel 
+          cell={{ x: 0, y: 0 }} 
+          text="S" 
+          color="#ffffff" 
+          fontSize={0.08}
+          height={0.01}
+        />
+        
+        {/* ゴール位置のマーカーとラベル */}
+        {sampleMazeData16.goal.map((goalCell, index) => (
+          <React.Fragment key={`goal-${index}`}>
+            <CellMarker
+              cell={goalCell}
+              color="#aa0000"
+              opacity={0.7}
+              scale={0.8}
+              type="square"
+            />
+            <TextLabel 
+              cell={goalCell} 
+              text="G" 
+              color="#ffffff" 
+              fontSize={0.08}
+              height={0.01}
+            />
+          </React.Fragment>
+        ))}
+        
+        {/* 探索済みセルを示す例 */}
+        <CellMarker cell={{ x: 1, y: 0 }} color="#0088ff" opacity={0.3} type="square" />
+        <CellMarker cell={{ x: 1, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
+        <CellMarker cell={{ x: 2, y: 1 }} color="#0088ff" opacity={0.3} type="square" />
+        
+        {/* 各セルの訪問回数を示す例 */}
+        <TextLabel cell={{ x: 1, y: 0 }} text="2" color="#ffffff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 1, y: 1 }} text="3" color="#ffffff" fontSize={0.06} height={0.005} />
+        <TextLabel cell={{ x: 2, y: 1 }} text="1" color="#ffffff" fontSize={0.06} height={0.005} />
+      </MicromouseVisualizer>
+    </DataProvider>
   ),
 };
 
@@ -537,18 +562,21 @@ export const Japan2023HefWithPath: Story = {
     ];
     
     return (
-      <MicromouseVisualizer
-        mazeData={mazeData}
-        width={args.width}
-        height={args.height}
-        showGridHelper={args.showGridHelper}
-        showAxesHelper={args.showAxesHelper}
-        showPerformanceStats={args.showPerformanceStats}
-        showDiagonalGrid={args.showDiagonalGrid}
-        initialViewPreset={args.initialViewPreset}
-        backgroundColor={args.backgroundColor}
+      <DataProvider 
+        initialMazeData={mazeData}
+        initialMouseState={initialMouseState}
       >
-        <Mouse mouseState={initialMouseState} />
+        <MicromouseVisualizer
+          width={args.width}
+          height={args.height}
+          showGridHelper={args.showGridHelper}
+          showAxesHelper={args.showAxesHelper}
+          showPerformanceStats={args.showPerformanceStats}
+          showDiagonalGrid={args.showDiagonalGrid}
+          initialViewPreset={args.initialViewPreset}
+          backgroundColor={args.backgroundColor}
+        >
+          <Mouse />
         
         {/* スタート位置のマーカーとラベル */}
         <CellMarker 
@@ -598,7 +626,8 @@ export const Japan2023HefWithPath: Story = {
             height={0.001}
           />
         ))}
-      </MicromouseVisualizer>
+        </MicromouseVisualizer>
+      </DataProvider>
     );
   }
 };
@@ -760,8 +789,12 @@ export const WithCameraControls: Story = {
         </div>
 
         {/* Visualizer with camera ref */}
-        <MicromouseVisualizer {...args} cameraRef={cameraRef}>
-          <Mouse mouseState={sampleInitialMouseState16} />
+        <DataProvider 
+          initialMazeData={sampleMazeData16}
+          initialMouseState={sampleInitialMouseState16}
+        >
+          <MicromouseVisualizer {...args} cameraRef={cameraRef}>
+            <Mouse />
           
           {/* Zoom Start Area範囲マーカー (0, 0, 0.27, 0.27) - 3x3セル */}
           {Array.from({ length: 3 }, (_, y) =>
@@ -836,7 +869,8 @@ export const WithCameraControls: Story = {
               height={0.001}
             />
           ))}
-        </MicromouseVisualizer>
+          </MicromouseVisualizer>
+        </DataProvider>
       </div>
     );
   },
@@ -923,18 +957,21 @@ export const Japan2023HefDynamicWithPath: Story = {
     ];
     
     return (
-      <MicromouseVisualizer
-        mazeData={mazeData}
-        width={args.width}
-        height={args.height}
-        showGridHelper={args.showGridHelper}
-        showAxesHelper={args.showAxesHelper}
-        showPerformanceStats={args.showPerformanceStats}
-        showDiagonalGrid={args.showDiagonalGrid}
-        initialViewPreset={args.initialViewPreset}
-        backgroundColor={args.backgroundColor}
+      <DataProvider 
+        initialMazeData={mazeData}
+        initialMouseState={initialMouseState}
       >
-        <Mouse mouseState={initialMouseState} />
+        <MicromouseVisualizer
+          width={args.width}
+          height={args.height}
+          showGridHelper={args.showGridHelper}
+          showAxesHelper={args.showAxesHelper}
+          showPerformanceStats={args.showPerformanceStats}
+          showDiagonalGrid={args.showDiagonalGrid}
+          initialViewPreset={args.initialViewPreset}
+          backgroundColor={args.backgroundColor}
+        >
+          <Mouse />
         
         {/* スタート位置のマーカーとラベル */}
         <CellMarker 
@@ -984,7 +1021,8 @@ export const Japan2023HefDynamicWithPath: Story = {
             height={0.001}
           />
         ))}
-      </MicromouseVisualizer>
+        </MicromouseVisualizer>
+      </DataProvider>
     );
   }
 };

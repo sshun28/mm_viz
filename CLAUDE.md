@@ -22,22 +22,29 @@ npm test
 ## アーキテクチャ
 
 ### コア構造
-プロジェクトは**コンポーネント合成パターン**を採用しており、`MicromouseVisualizer`がメインコンテナとして動作し、子コンポーネントをpropsとして受け取る設計です：
+プロジェクトは**コンポーネント合成パターン**と**統一データ管理**を採用しており、`DataProvider`が状態管理の中心として機能し、`MicromouseVisualizer`がメインコンテナとして動作する設計です：
 
 ```
-MicromouseVisualizer (メインコンテナ)
-├── Maze (迷路の3D描画)
-├── CameraController (カメラ制御・プリセット)
-└── 子コンポーネント (props経由):
-    ├── Mouse (3Dマウスモデル)
-    ├── CellMarker (セルハイライト)
-    ├── TextLabel (テキストオーバーレイ)
-    ├── TrajectoryPath (軌道可視化)
-    └── PlaybackControls (アニメーション制御)
+DataProvider (統一データ管理)
+└── MicromouseVisualizer (メインコンテナ)
+    ├── Maze (迷路の3D描画)
+    ├── CameraController (カメラ制御・プリセット)
+    └── 子コンポーネント (useDataフック経由でデータアクセス):
+        ├── Mouse (3Dマウスモデル)
+        ├── CellMarker (セルハイライト)
+        ├── TextLabel (テキストオーバーレイ)
+        ├── TrajectoryPath (軌道可視化)
+        └── PlaybackControls (アニメーション制御)
 ```
 
 ### 状態管理とアニメーション
-- **TrajectoryProvider**: コンテキストプロバイダで軌道再生状態を管理
+- **DataProvider**: Zustandベースの統一データ管理プロバイダ
+  - `MazeData`: 迷路データの管理
+  - `MouseState`: マウス位置・角度の管理
+  - `CellMarkerData`: セルマーカーの管理
+  - `TextLabelData`: テキストラベルの管理
+- **useData**: データアクセス・更新用フック（Zustandストアへの直接アクセス）
+- **TrajectoryProvider**: 軌道再生専用プロバイダ（軌道アニメーション機能）
 - **useTrajectory**: 再生制御フック（再生/一時停止/シーク/速度調整）
 - 時間ベースの補間により滑らかなマウス移動を実現
 - 大きな軌道データセット用のバイナリサーチ最適化
@@ -50,7 +57,25 @@ MicromouseVisualizer (メインコンテナ)
 ### データ構造
 - **MazeData**: 壁レイアウト、スタート/ゴール位置
 - **MouseState**: 物理座標での位置と角度
+- **CellMarkerData**: セルマーカーの表示データ（ID、位置、色、表示状態）
+- **TextLabelData**: テキストラベルの表示データ（ID、テキスト、3D位置、表示状態）
 - **TrajectoryProfile**: アニメーション用の時間インデックス付きマウス状態
+
+### データ管理パターン
+```tsx
+// データの読み取り
+const mazeData = useData((state) => state.mazeData);
+const mouseState = useData((state) => state.mouseState);
+
+// データの更新
+const setMazeData = useData((state) => state.setMazeData);
+const updateMouseState = useData((state) => state.updateMouseState);
+
+// セルマーカーの管理
+const addCellMarker = useData((state) => state.addCellMarker);
+const updateCellMarker = useData((state) => state.updateCellMarker);
+const removeCellMarker = useData((state) => state.removeCellMarker);
+```
 
 ## 設定とパフォーマンス
 - **constants.ts**: セルサイズ、物理寸法、色の定義

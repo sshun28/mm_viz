@@ -21,10 +21,9 @@
 ## 2. コンポーネント構成
 
 ### 2.1 MicromouseVisualizer（メインコンポーネント）
-メインのコンテナコンポーネント。3Dシーンのセットアップ、迷路の描画、カメラ制御を担当します。迷路内に表示する他の要素（マウス、軌跡など）は `children` として受け取ります。
+メインのコンテナコンポーネント。3Dシーンのセットアップ、迷路の描画、カメラ制御を担当します。迷路データは `DataProvider` 経由で取得し、迷路内に表示する他の要素（マウス、軌跡など）は `children` として受け取ります。
 
 **Props:**
-- `mazeData?: MazeData`: 迷路データ。提供されない場合はローディング表示。
 - `width?: number`: コンポーネントの幅 (デフォルト: 800)。
 - `height?: number`: コンポーネントの高さ (デフォルト: 600)。
 - `backgroundColor?: string`: 背景色 (デフォルト: '#f0f0f0')。
@@ -33,9 +32,13 @@
 - `initialViewPreset?: CameraViewPreset`: 初期カメラビュープリセット (デフォルト: 'angle')。
 - `children?: React.ReactNode`: 迷路内に描画する追加のReact要素（例: `<Mouse />`, `<Trajectory />`）。
 
+**データ取得:**
+- 迷路データは `useData((state) => state.mazeData)` で取得。
+- データが `null` の場合はローディング表示。
+
 ### 2.2 サブコンポーネント (MicromouseVisualizer 内部)
 #### 2.2.1 Maze
-- `mazeData: MazeData` を prop として受け取る。
+- `mazeData: MazeData` を prop として受け取る（MicromouseVisualizerから渡される）。
 - 迷路の床・柱・壁を描画。
 - 壁の存在有無を視覚的に表現。
 - スタート地点とゴール地点を強調表示。
@@ -48,7 +51,9 @@
 
 ### 2.3 描画要素コンポーネント (children として渡す想定)
 #### 2.3.1 Mouse
-- `mouseState: MouseState` を prop として受け取る。
+- `mouseState?: MouseState` をオプション prop として受け取る。
+- prop が提供されない場合は `useData((state) => state.mouseState)` でDataProviderからデータを取得。
+- 優先順位: props > DataProvider > デフォルト値
 - マウスの3Dモデルを描画。
 - `mouseState` に基づいて位置と向きを更新。
 - 移動アニメーションは上位コンポーネントまたは状態管理ライブラリで制御。
@@ -63,7 +68,32 @@
 - アニメーション速度調整
 - 表示/非表示設定
 
-## 3. データ構造
+## 3. データ構造とデータ管理
+
+### 3.1 統一データ管理（DataProvider）
+プロジェクトでは **Zustand** ベースの統一データ管理を採用しています：
+
+- **DataProvider**: アプリケーション全体の状態管理を担当するコンテキストプロバイダ
+- **useData**: Zustandストアへの直接アクセスを提供するフック
+- **データ種別**:
+  - `MazeData`: 迷路データ（壁配置、スタート/ゴール位置）
+  - `MouseState`: マウスの位置・角度
+  - `CellMarkerData`: セルマーカーの表示データ（ID、位置、色、表示状態）
+  - `TextLabelData`: テキストラベルの表示データ（ID、テキスト、3D位置、表示状態）
+
+### 3.2 使用パターン
+```tsx
+// データの読み取り
+const mazeData = useData((state) => state.mazeData);
+const mouseState = useData((state) => state.mouseState);
+
+// データの更新
+const setMazeData = useData((state) => state.setMazeData);
+const updateMouseState = useData((state) => state.updateMouseState);
+
+// セルマーカーの管理
+const addCellMarker = useData((state) => state.addCellMarker);
+```
 
 詳細は [データ構造](./data-structures.md) を参照してください。
 
@@ -86,10 +116,13 @@
 - 壁はFBXモデルを読み込み、InstancedMesh を使用して描画。
 - 柱もFBXモデルを読み込み、InstancedMesh を使用して描画。
 
-### 4.2 マウスの動きのアニメーション (ライブラリ外部)
+### 4.2 マウスの動きのアニメーション
 - `MicromouseVisualizer` はマウスの状態 (`MouseState`) を直接管理しない。
+- **静的表示**: `DataProvider` の `initialMouseState` でマウスの初期位置を設定。
+- **動的アニメーション**: 
+  - `TrajectoryProvider` と `useTrajectory` を使用した軌道再生（推奨）
+  - または `useData((state) => state.updateMouseState)` による手動更新
 - アニメーションロジック（状態の更新、補間など）は、`MicromouseVisualizer` を利用する側のアプリケーションで実装する。
-- 時系列プロファイルを読み込み、`Mouse` コンポーネントに渡す `mouseState` を更新することでアニメーションを実現する。
 
 ### 4.3 壁の表現方法 (`Maze` コンポーネント)
 - 外壁と内壁を区別して描画。
@@ -152,6 +185,24 @@
   - 時系列データに基づく軌跡の可視化（過去／予測軌跡の表現）
 
 #### 8.2.1 データプロバイダーパターンの設計
+
+##### DataProvider（統一データ管理）
+- **DataProvider コンポーネント**:
+  - Props:
+    - `initialMazeData?: MazeData`: 初期迷路データ
+    - `initialMouseState?: MouseState`: 初期マウス状態
+    - `children: ReactNode`: 子コンポーネント
+  - 機能:
+    - Zustandベースの統一状態管理
+    - マウス状態、迷路データ、マーカー、ラベルの管理
+    - リアルタイムデータ更新サポート
+
+- **useData フック**:
+  - 返却値: Zustandストアへの直接アクセス
+  - 読み取り: `useData((state) => state.mazeData)`
+  - 更新: `useData((state) => state.setMazeData)`
+
+##### TrajectoryProvider（軌道アニメーション専用）
 - **TrajectoryProvider コンポーネント**:
   - Props:
     - `trajectoryProfile: TrajectoryProfile`: 時系列のマウス状態プロファイル
@@ -178,20 +229,42 @@
 
 - **利用パターン**:
   ```tsx
-  // 使用例
+  // 基本的な使用例（DataProviderのみ）
   const App = () => {
+    const mazeData = /* 迷路データ */;
+    const initialMouseState = /* 初期マウス状態 */;
+    
+    return (
+      <DataProvider 
+        initialMazeData={mazeData}
+        initialMouseState={initialMouseState}
+      >
+        <div className="container">
+          <MicromouseVisualizer>
+            <Mouse />
+            <CellMarker cell={{x: 0, y: 0}} color="#ff0000" />
+          </MicromouseVisualizer>
+        </div>
+      </DataProvider>
+    );
+  };
+
+  // 軌道アニメーション使用例（DataProvider + TrajectoryProvider）
+  const AnimatedApp = () => {
     const trajectoryProfile = /* プロファイルデータ */;
     
     return (
-      <TrajectoryProvider trajectoryProfile={trajectoryProfile}>
-        <div className="container">
-          <MicromouseVisualizer mazeData={mazeData}>
-            <AnimatedMouse />
-            <TrajectoryPath />
-          </MicromouseVisualizer>
-          <PlaybackControls />
-        </div>
-      </TrajectoryProvider>
+      <DataProvider initialMazeData={mazeData}>
+        <TrajectoryProvider trajectoryProfile={trajectoryProfile}>
+          <div className="container">
+            <MicromouseVisualizer>
+              <AnimatedMouse />
+              <TrajectoryPath />
+            </MicromouseVisualizer>
+            <PlaybackControls />
+          </div>
+        </TrajectoryProvider>
+      </DataProvider>
     );
   };
 

@@ -5,11 +5,12 @@ import * as THREE from 'three';
 import { MouseState } from '../../types';
 import { MOUSE_SIZE, FLOOR_THICKNESS } from '../../config/constants';
 import { useTrajectory } from '../../providers/TrajectoryProvider';
+import { useData } from '../../providers/DataProvider';
 import { getModelPath } from '../../assets/models';
 
 // マウスのプロパティの型定義
 export interface MouseProps {
-  mouseState: MouseState;           // マウスの状態（位置と角度）
+  mouseState?: MouseState;          // マウスの状態（位置と角度）- DataProviderから取得する場合はオプション
   fbxPath?: string;                 // FBXファイルのパス（オプション）
   scale?: [number, number, number]; // モデルのスケール（オプション）
   modelColor?: string;              // モデルの色（オプション）
@@ -24,7 +25,7 @@ export interface MouseProps {
  * FBXファイルからマウスのモデルを読み込むコンポーネント
  */
 const Mouse: React.FC<MouseProps> = ({
-  mouseState,
+  mouseState: propMouseState,
   fbxPath = getModelPath('micromouse'),
   scale = [0.001, 0.001, 0.001],
   modelColor,
@@ -36,6 +37,10 @@ const Mouse: React.FC<MouseProps> = ({
 }) => {
   console.log('Mouse component rendered');
   const traj = useTrajectory();
+  const dataMouseState = useData((state) => state.mouseState);
+
+  // マウスの状態を決定（優先順位: props > DataProvider > デフォルト）
+  const mouseState = propMouseState || dataMouseState;
 
   // MouseState.position は迷路原点(左下隅)からの物理座標なので、そのまま使用できる
   const posX = mouseState.position.x;

@@ -8,6 +8,7 @@ import { CELL_SIZE, cameraPresets } from '../../config/constants';
 import CameraController, { CameraControlAPI } from './CameraController';
 import Maze from './Maze';
 import CellMarker from './CellMarker';
+import { useData } from '../../providers/DataProvider';
 
 // Stats.jsを使ったパフォーマンスモニターコンポーネント
 const PerformanceMonitor: React.FC<{ enabled: boolean }> = ({ enabled }) => {
@@ -219,7 +220,6 @@ export interface MicromouseVisualizerAPI {
 
 // --- Props定義 ---
 interface MicromouseVisualizerProps {
-  mazeData?: MazeData;
   width?: number | string;
   height?: number | string;
   backgroundColor?: string;
@@ -237,7 +237,6 @@ interface MicromouseVisualizerProps {
 // --- メインコンポーネント ---
 export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, MicromouseVisualizerProps>((
   {
-    mazeData,
     width = '100%',
     height = '100%',
     backgroundColor = '#181818',
@@ -256,6 +255,9 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
   const internalCameraRef = useRef<CameraControlAPI | null>(null);
   // 外部のcameraRefが提供されている場合はそれを使用、そうでなければ内部のrefを使用
   const actualCameraRef = cameraRef || internalCameraRef;
+
+  // DataProviderからmazeDataを取得
+  const mazeData = useData((state) => state.mazeData);
 
   // デフォルトの迷路サイズ（データがない場合）
   const DEFAULT_MAZE_SIZE = 16;
