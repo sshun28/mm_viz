@@ -257,32 +257,12 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
   // 外部のcameraRefが提供されている場合はそれを使用、そうでなければ内部のrefを使用
   const actualCameraRef = cameraRef || internalCameraRef;
 
-  // 迷路データがない場合は早期リターン
-  if (!mazeData) {
-    return (
-      <div 
-        className={className}
-        style={{ 
-          width, 
-          height, 
-          backgroundColor: '#181818', 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          color:"#CCCCCC",
-          ...style 
-        }}
-      >
-        Loading Maze Data...
-      </div>
-    );
-  }
-  // ここから下では mazeData は undefined ではない
-
-  const mazeSize = mazeData.size;
-
+  // デフォルトの迷路サイズ（データがない場合）
+  const DEFAULT_MAZE_SIZE = 16;
+  
+  // 迷路サイズの決定（データがない場合はデフォルト値を使用）
+  const mazeSize = mazeData?.size || DEFAULT_MAZE_SIZE;
   const mazePhysicalSize = mazeSize * CELL_SIZE;
-
   const initialCameraPosition = cameraPresets[initialViewPreset].position as [number, number, number];
 
   // 外部からカメラを操作できるAPIを公開
@@ -340,11 +320,13 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
         />
         <directionalLight position={[-5, -5, -5]} intensity={0.3} />
 
-        {/* 迷路 (mazeData は undefined でないことが保証されている) */}
+        {/* 迷路（データがある場合のみ表示） */}
         {/* Mazeコンポーネントの原点をシーンの原点に合わせる */}
-        <group position={[0, 0, 0]}>
-          <Maze mazeData={mazeData} />
-        </group>
+        {mazeData && (
+          <group position={[0, 0, 0]}>
+            <Maze mazeData={mazeData} />
+          </group>
+        )}
 
         {/* children をレンダリング */}
         {children}
@@ -375,6 +357,24 @@ export const MicromouseVisualizer = forwardRef<MicromouseVisualizerAPI, Micromou
         <PerformanceMonitor enabled={showPerformanceStats} />
 
       </Canvas>
+      {/* データがない場合のオーバーレイ表示 */}
+      {!mazeData && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#CCCCCC',
+            fontSize: '16px',
+            fontFamily: 'Arial, sans-serif',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          Loading Maze Data...
+        </div>
+      )}
     </div>
   );
 });
