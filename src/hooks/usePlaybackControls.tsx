@@ -1,26 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useTrajectory } from '../providers/TrajectoryProvider';
+import { useData, useSharedTrajectoryAnimation } from '../providers/DataProvider';
 
 /**
  * 軌跡再生コントロールのためのheadless hook
  * UIロジックと状態管理を提供し、実際のUIコンポーネントは別途実装
  */
 export const usePlaybackControls = () => {
-  // TrajectoryProviderのコンテキストを取得
-  const {
-    play,
-    pause,
-    stop,
-    seekTo,
-    setPlaybackSpeed,
-    setLoopEnabled,
-    isPlayingRef,
-    currentTimeRef,
-    durationRef,
-    playbackSpeedRef,
-    isLoopEnabledRef,
-    sortedTimestampsRef,
-  } = useTrajectory();
+  // DataProviderから軌道制御関数と状態を取得
+  const play = useData((state) => state.play);
+  const pause = useData((state) => state.pause);
+  const stop = useData((state) => state.stop);
+  const setPlaybackSpeed = useData((state) => state.setPlaybackSpeed);
+  const setLoopEnabled = useData((state) => state.setLoopEnabled);
+  
+  // 現在の状態を取得
+  const isPlayingCurrent = useData((state) => state.isPlaying);
+  const durationCurrent = useData((state) => state.duration);
+  const playbackSpeedCurrent = useData((state) => state.playbackSpeed);
+  const isLoopEnabledCurrent = useData((state) => state.isLoopEnabled);
+  const sortedTimestampsCurrent = useData((state) => state.sortedTimestamps);
+  const trajectoryProfile = useData((state) => state.trajectoryProfile);
+  
+  // 高性能アニメーション用のref管理（共有）
+  const { currentTimeRef, updateMouseStateForTime, setCurrentTime: setAnimationTime } = useSharedTrajectoryAnimation();
 
   // UIの表示用の状態
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,14 +35,14 @@ export const usePlaybackControls = () => {
 
   // 再生/一時停止の切り替え
   const togglePlayPause = useCallback(() => {
-    if (isPlayingRef.current) {
+    if (isPlayingCurrent) {
       pause();
       setIsPlaying(false);
     } else {
       play();
       setIsPlaying(true);
     }
-  }, [play, pause, isPlayingRef]);
+  }, [play, pause, isPlayingCurrent]);
 
   // 再生停止
   const handleStop = useCallback(() => {
@@ -51,9 +53,15 @@ export const usePlaybackControls = () => {
 
   // シークバーの変更（デフォルトで一時停止）
   const handleSeek = useCallback((value: number, pauseAfterSeek: boolean = true) => {
-    seekTo(value, pauseAfterSeek);
-    setCurrentTime(value);
-  }, [seekTo]);
+    // refベースのアニメーションシステムを更新
+    setAnimationTime(value);
+    updateMouseStateForTime(value, trajectoryProfile, sortedTimestampsCurrent);
+    
+    // 一時停止が指定されている場合は停止
+    if (pauseAfterSeek) {
+      pause();
+    }
+  }, [setAnimationTime, updateMouseStateForTime, trajectoryProfile, sortedTimestampsCurrent, pause]);
 
   // 再生速度の変更
   const handleSpeedChange = useCallback((speed: number) => {
@@ -63,10 +71,10 @@ export const usePlaybackControls = () => {
 
   // ループ設定の変更
   const handleLoopToggle = useCallback(() => {
-    const newLoopState = !isLoopEnabledRef.current;
+    const newLoopState = !isLoopEnabledCurrent;
     setLoopEnabled(newLoopState);
     setIsLoopEnabledUi(newLoopState);
-  }, [setLoopEnabled, isLoopEnabledRef]);
+  }, [setLoopEnabled, isLoopEnabledCurrent]);
 
   // 時間のフォーマット
   const formatTime = useCallback((timeInSeconds: number): string => {
@@ -81,29 +89,31 @@ export const usePlaybackControls = () => {
     return `${speed.toFixed(1)}x`;
   }, []);
 
-  // 状態更新用のインターバル
+  // 状態更新用のeffect（Zustandの状態とrefの状態を同期）
+  useEffect(() => {
+    setIsPlaying(isPlayingCurrent);
+    setDuration(durationCurrent);
+    setPlaybackSpeedUi(playbackSpeedCurrent);
+    setIsLoopEnabledUi(isLoopEnabledCurrent);
+    
+    // タイムスタンプの最初と最後を更新
+    if (sortedTimestampsCurrent && sortedTimestampsCurrent.length > 0) {
+      setFirstTimestamp(sortedTimestampsCurrent[0]);
+      setLastTimestamp(sortedTimestampsCurrent[sortedTimestampsCurrent.length - 1]);
+    } else {
+      setFirstTimestamp(null);
+      setLastTimestamp(null);
+    }
+  }, [isPlayingCurrent, durationCurrent, playbackSpeedCurrent, isLoopEnabledCurrent, sortedTimestampsCurrent]);
+
+  // UI表示用のcurrentTimeを定期的にrefから同期
   useEffect(() => {
     const intervalId = setInterval(() => {
-      // ref から状態を読み取り、UI表示用の状態を更新
-      setIsPlaying(isPlayingRef.current);
       setCurrentTime(currentTimeRef.current);
-      setDuration(durationRef.current);
-      setPlaybackSpeedUi(playbackSpeedRef.current);
-      setIsLoopEnabledUi(isLoopEnabledRef.current);
-      
-      // タイムスタンプの最初と最後を更新
-      const timestamps = sortedTimestampsRef.current;
-      if (timestamps && timestamps.length > 0) {
-        setFirstTimestamp(timestamps[0]);
-        setLastTimestamp(timestamps[timestamps.length - 1]);
-      } else {
-        setFirstTimestamp(null);
-        setLastTimestamp(null);
-      }
-    }, 50); // 50msごとに更新（60FPSより少し遅め）
+    }, 50); // 50msごとに更新（20FPS）
 
     return () => clearInterval(intervalId);
-  }, [isPlayingRef, currentTimeRef, durationRef, playbackSpeedRef, isLoopEnabledRef, sortedTimestampsRef]);
+  }, [currentTimeRef]);
 
   return {
     // 状態

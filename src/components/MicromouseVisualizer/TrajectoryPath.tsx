@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useTrajectory } from '../../providers/TrajectoryProvider';
+import { useData, useSharedTrajectoryAnimation } from '../../providers/DataProvider';
 import { FLOOR_THICKNESS } from '../../config/constants';
 
 // TrajectoryPathのProps
@@ -33,8 +33,11 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   pointSize = 0.001,
   pointColor,
 }) => {
-  // TrajectoryProviderからデータを取得
-  const trajectory = useTrajectory();
+  // DataProviderからデータを取得
+  const trajectoryProfile = useData((state) => state.trajectoryProfile);
+  
+  // 高性能アニメーション用のref管理（共有）
+  const { currentTimeRef } = useSharedTrajectoryAnimation();
   
   // Three.jsのオブジェクト参照
   const rootRef = useRef<THREE.Group>(null);
@@ -75,8 +78,8 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     if (!rootRef.current) return;
     
     // ソートされた時間キーの配列を作成してキャッシュ
-    if (trajectory.trajectoryProfileRef.current?.size > 0) {
-      sortedTimesRef.current = Array.from(trajectory.trajectoryProfileRef.current?.keys()).sort((a, b) => a - b);
+    if (trajectoryProfile?.size > 0) {
+      sortedTimesRef.current = Array.from(trajectoryProfile.keys()).sort((a, b) => a - b);
     }
     
     // 過去軌跡のラインを作成
@@ -106,7 +109,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
         if (pointsInstancedMeshRef.current) rootRef.current.remove(pointsInstancedMeshRef.current);
       }
     };
-  }, [trajectory.trajectoryProfileRef, pastMaterial, pointGeometry, pointMaterial, showLine, showPoints]);
+  }, [trajectoryProfile, pastMaterial, pointGeometry, pointMaterial, showLine, showPoints]);
   
   // 軌跡の色やスタイルが変更された場合に更新
   useEffect(() => {
@@ -125,7 +128,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   // 毎フレーム軌跡を更新
   useFrame(() => {
     // 必要なrefがない場合や、軌跡データがない場合は早期リターン
-    if (!rootRef.current || !trajectory.trajectoryProfileRef || trajectory.trajectoryProfileRef.current.size === 0) {
+    if (!rootRef.current || !trajectoryProfile || trajectoryProfile.size === 0) {
       return;
     }
     
@@ -134,7 +137,7 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       return;
     }
     
-    const currentTime = trajectory.currentTimeRef.current;
+    const currentTime = currentTimeRef.current;
     
     // 時間が変わっていない場合は更新不要
     if (lastTimeRef.current === currentTime) {
@@ -145,14 +148,14 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     
     // ソートされた時間キーが未設定の場合は作成
     if (sortedTimesRef.current.length === 0) {
-      sortedTimesRef.current = Array.from(trajectory.trajectoryProfileRef.current.keys()).sort((a, b) => a - b);
+      sortedTimesRef.current = Array.from(trajectoryProfile.keys()).sort((a, b) => a - b);
     }
     
     const sortedTimes = sortedTimesRef.current;
     
     // 軌跡ポイントの計算
     const pastPoints = calculateTrajectoryPoints(
-      trajectory.trajectoryProfileRef.current,
+      trajectoryProfile,
       sortedTimes,
       currentTime,
       height

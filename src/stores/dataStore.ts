@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { MazeData, MouseState, CellPosition } from '../types';
+import type { MazeData, MouseState, CellPosition, TrajectoryProfile } from '../types';
 
 export interface CellMarkerData {
   id: string;
@@ -15,13 +15,13 @@ export interface TextLabelData {
   visible?: boolean;
 }
 
-interface DataStore {
+export interface DataStore {
   // Maze data
   mazeData: MazeData | null;
   setMazeData: (data: MazeData | null) => void;
   updateMazeData: (updates: Partial<MazeData>) => void;
 
-  // Mouse state
+  // Mouse state (for static positioning, not animation)
   mouseState: MouseState;
   setMouseState: (state: MouseState) => void;
   updateMouseState: (updates: Partial<MouseState>) => void;
@@ -40,6 +40,22 @@ interface DataStore {
   removeTextLabel: (id: string) => void;
   clearTextLabels: () => void;
 
+  // Trajectory control state (for UI and settings only)
+  trajectoryProfile: TrajectoryProfile;
+  isPlaying: boolean;
+  duration: number;
+  playbackSpeed: number;
+  isLoopEnabled: boolean;
+  sortedTimestamps: number[];
+
+  // Trajectory control methods
+  setTrajectoryProfile: (profile: TrajectoryProfile) => void;
+  play: () => void;
+  pause: () => void;
+  stop: () => void;
+  setPlaybackSpeed: (speed: number) => void;
+  setLoopEnabled: (enabled: boolean) => void;
+
   // Clear all data
   clearAll: () => void;
 }
@@ -49,7 +65,7 @@ const initialMouseState: MouseState = {
   angle: 0,
 };
 
-export const useDataStore = create<DataStore>((set) => ({
+export const useDataStore = create<DataStore>((set, get) => ({
   // Maze data
   mazeData: null,
   setMazeData: (data) => set({ mazeData: data }),
@@ -65,6 +81,14 @@ export const useDataStore = create<DataStore>((set) => ({
     set((state) => ({
       mouseState: { ...state.mouseState, ...updates },
     })),
+
+  // Trajectory control state
+  trajectoryProfile: new Map(),
+  isPlaying: false,
+  duration: 0,
+  playbackSpeed: 1,
+  isLoopEnabled: false,
+  sortedTimestamps: [],
 
   // Cell markers
   cellMarkers: new Map(),
@@ -116,6 +140,51 @@ export const useDataStore = create<DataStore>((set) => ({
     }),
   clearTextLabels: () => set({ textLabels: new Map() }),
 
+  // Trajectory control methods
+  setTrajectoryProfile: (profile) => {
+    const sortedTimestamps = Array.from(profile.keys()).sort((a, b) => a - b);
+    const duration = sortedTimestamps.length > 0 ? sortedTimestamps[sortedTimestamps.length - 1] : 0;
+    
+    set({
+      trajectoryProfile: profile,
+      sortedTimestamps,
+      duration,
+      isPlaying: false,
+    });
+    
+    // Initialize mouse state to first position
+    if (sortedTimestamps.length > 0) {
+      const firstElement = profile.get(sortedTimestamps[0]);
+      if (firstElement) {
+        set({ mouseState: { ...firstElement } });
+      }
+    }
+  },
+
+  play: () => set({ isPlaying: true }),
+
+  pause: () => set({ isPlaying: false }),
+
+  stop: () => {
+    const state = get();
+    set({ isPlaying: false });
+    
+    // Reset mouse state to first position
+    if (state.sortedTimestamps.length > 0) {
+      const firstElement = state.trajectoryProfile.get(state.sortedTimestamps[0]);
+      if (firstElement) {
+        set({ mouseState: { ...firstElement } });
+      }
+    }
+  },
+
+  setPlaybackSpeed: (speed) => {
+    const clampedSpeed = Math.max(0.1, Math.min(10, speed));
+    set({ playbackSpeed: clampedSpeed });
+  },
+
+  setLoopEnabled: (enabled) => set({ isLoopEnabled: enabled }),
+
   // Clear all data
   clearAll: () =>
     set({
@@ -123,5 +192,11 @@ export const useDataStore = create<DataStore>((set) => ({
       mouseState: initialMouseState,
       cellMarkers: new Map(),
       textLabels: new Map(),
+      trajectoryProfile: new Map(),
+      isPlaying: false,
+      duration: 0,
+      playbackSpeed: 1,
+      isLoopEnabled: false,
+      sortedTimestamps: [],
     }),
 }));

@@ -4,8 +4,7 @@ import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { MouseState } from '../../types';
 import { MOUSE_SIZE, FLOOR_THICKNESS } from '../../config/constants';
-import { useTrajectory } from '../../providers/TrajectoryProvider';
-import { useData } from '../../providers/DataProvider';
+import { useData, useSharedTrajectoryAnimation } from '../../providers/DataProvider';
 import { getModelPath } from '../../assets/models';
 
 // マウスのプロパティの型定義
@@ -36,19 +35,14 @@ const Mouse: React.FC<MouseProps> = ({
   }
 }) => {
   console.log('Mouse component rendered');
-  const traj = useTrajectory();
   const dataMouseState = useData((state) => state.mouseState);
+  const isPlaying = useData((state) => state.isPlaying);
+  
+  // 高性能アニメーション用のref管理（共有）
+  const { currentMouseStateRef } = useSharedTrajectoryAnimation();
 
-  // マウスの状態を決定（優先順位: props > DataProvider > デフォルト）
-  const mouseState = propMouseState || dataMouseState;
-
-  // MouseState.position は迷路原点(左下隅)からの物理座標なので、そのまま使用できる
-  const posX = mouseState.position.x;
-  const posY = mouseState.position.y;
-  const posZ = 0
-
-  // 角度をThree.jsの回転（Z軸周り）に変換
-  const rotationZ = mouseState.angle;
+  // 初期マウス状態（ストーリーやデフォルト用）
+  const staticMouseState = propMouseState || dataMouseState;
 
   // FBXモデルを読み込む
   const fbx = useFBX(fbxPath);
@@ -137,21 +131,59 @@ const Mouse: React.FC<MouseProps> = ({
     }
   }, [fbx, modelColor, scale, modelOffset, showArrowHelper, arrowHelper]);
 
+  // 初期位置の設定
+  useEffect(() => {
+    if (mouseRef.current && staticMouseState) {
+      mouseRef.current.position.set(staticMouseState.position.x, staticMouseState.position.y, 0);
+      mouseRef.current.rotation.set(0, 0, staticMouseState.angle);
+      console.log('Initial mouse position set:', staticMouseState);
+    }
+  }, [staticMouseState]);
+
   useFrame(() => {
     if (!mouseRef.current) return;
-    if (!traj) return;
-    if (!traj.currentMouseStateRef.current) return;
-    const r = traj.currentMouseStateRef.current;
-    mouseRef.current.position.set(r.position.x, r.position.y, 0);
-    mouseRef.current.rotation.set(0, 0, r.angle);
-  }
-  )
+    
+    // アニメーション中は高性能なrefベースの状態を優先
+    // 静的な場合はpropsやZustandの状態を使用
+    let currentMouseState: MouseState;
+    
+    if (isPlaying && currentMouseStateRef.current) {
+      // アニメーション中：refベースの状態を使用
+      currentMouseState = currentMouseStateRef.current;
+      if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
+        console.log('Animation state:', currentMouseState, 'isPlaying:', isPlaying);
+      }
+    } else {
+      // 静的状態：propsやZustandの状態を使用
+      currentMouseState = staticMouseState;
+      if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
+        console.log('Static state:', currentMouseState, 'isPlaying:', isPlaying);
+      }
+    }
+    
+    if (!currentMouseState) {
+      console.log('No mouse state available');
+      return;
+    }
+    
+    const newX = currentMouseState.position.x;
+    const newY = currentMouseState.position.y;
+    const newAngle = currentMouseState.angle;
+    
+    // 位置が変わった場合のみ更新とログ
+    const currentPos = mouseRef.current.position;
+    if (Math.abs(currentPos.x - newX) > 0.001 || Math.abs(currentPos.y - newY) > 0.001) {
+      console.log('Mouse position updated:', { x: newX, y: newY, angle: newAngle });
+    }
+    
+    mouseRef.current.position.set(newX, newY, 0);
+    mouseRef.current.rotation.set(0, 0, newAngle);
+  })
 
   return (
     <group
       ref={mouseRef}
-      position={[posX, posY, posZ]}
-      rotation={[0, 0, rotationZ]}
+      // position and rotation are managed dynamically in useFrame
     />
   );
 };

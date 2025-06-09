@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import MicromouseVisualizer from '../src/components/MicromouseVisualizer/MicromouseVisualizer';
 import TrajectoryPath from '../src/components/MicromouseVisualizer/TrajectoryPath';
 import PlaybackControls from './components/PlaybackControls';
-import { TrajectoryProvider } from '../src/providers/TrajectoryProvider';
+import { DataProvider } from '../src/providers/DataProvider';
 import { loadMazeFromUrl } from '../src/utils/mazeLoader';
 import { MazeData, TrajectoryProfile, TrajectoryElement } from '../src/types';
 import TrajectoryAnimationController from '../src/components/MicromouseVisualizer/TrajectoryAnimationController';
@@ -97,9 +97,12 @@ export const WithSampleTrajectory: Story = {
 
         return (
             <div style={{ position: 'relative', width: args.width, height: args.height }}>
-                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                <DataProvider 
+                    initialMazeData={mazeData} 
+                    initialTrajectoryProfile={trajectoryProfile} 
+                    initialSpeed={1}
+                >
                     <MicromouseVisualizer
-                        mazeData={mazeData}
                         width={args.width}
                         height={args.height}
                         showGridHelper={args.showGridHelper}
@@ -113,7 +116,7 @@ export const WithSampleTrajectory: Story = {
                         {<TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={false} />}
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
-                </TrajectoryProvider>
+                </DataProvider>
             </div>
         );
     },
@@ -163,9 +166,12 @@ export const TrajectoryWithoutFuture: Story = {
 
         return (
             <div style={{ position: 'relative', width: args.width, height: args.height }}>
-                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                <DataProvider 
+                    initialMazeData={mazeData} 
+                    initialTrajectoryProfile={trajectoryProfile} 
+                    initialSpeed={1}
+                >
                     <MicromouseVisualizer
-                        mazeData={mazeData}
                         width={args.width}
                         height={args.height}
                         showGridHelper={args.showGridHelper}
@@ -178,7 +184,7 @@ export const TrajectoryWithoutFuture: Story = {
                         <TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={false} />
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
-                </TrajectoryProvider>
+                </DataProvider>
             </div>
         );
     },
@@ -219,9 +225,12 @@ export const CustomizedControls: Story = {
 
         return (
             <div style={{ position: 'relative', width: args.width, height: args.height }}>
-                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={2}>
+                <DataProvider 
+                    initialMazeData={mazeData} 
+                    initialTrajectoryProfile={trajectoryProfile} 
+                    initialSpeed={2}
+                >
                     <MicromouseVisualizer
-                        mazeData={mazeData}
                         width={args.width}
                         height={args.height}
                         showGridHelper={args.showGridHelper}
@@ -234,7 +243,7 @@ export const CustomizedControls: Story = {
                         <TrajectoryPath pastColor="#ff6600" lineWidth={3} showLine={true} showPoints={false} />
                     </MicromouseVisualizer>
                     <PlaybackControls controlPosition="top" showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
-                </TrajectoryProvider>
+                </DataProvider>
             </div>
         );
     },
@@ -287,9 +296,12 @@ export const PointTrajectory: Story = {
 
         return (
             <div style={{ position: 'relative', width: args.width, height: args.height }}>
-                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                <DataProvider 
+                    initialMazeData={mazeData} 
+                    initialTrajectoryProfile={trajectoryProfile} 
+                    initialSpeed={1}
+                >
                     <MicromouseVisualizer
-                        mazeData={mazeData}
                         width={args.width}
                         height={args.height}
                         showGridHelper={args.showGridHelper}
@@ -303,7 +315,7 @@ export const PointTrajectory: Story = {
                         {<TrajectoryPath pastColor="#00aaff" showLine={false} showPoints={true} pointColor="#ff0000" pointSize={0.0008} />}
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
-                </TrajectoryProvider>
+                </DataProvider>
             </div>
         );
     },
@@ -356,9 +368,12 @@ export const LineAndPointTrajectory: Story = {
 
         return (
             <div style={{ position: 'relative', width: args.width, height: args.height }}>
-                <TrajectoryProvider trajectoryProfile={trajectoryProfile} initialSpeed={1}>
+                <DataProvider 
+                    initialMazeData={mazeData} 
+                    initialTrajectoryProfile={trajectoryProfile} 
+                    initialSpeed={1}
+                >
                     <MicromouseVisualizer
-                        mazeData={mazeData}
                         width={args.width}
                         height={args.height}
                         showGridHelper={args.showGridHelper}
@@ -372,7 +387,7 @@ export const LineAndPointTrajectory: Story = {
                         {<TrajectoryPath pastColor="#00aaff" showLine={true} showPoints={true} pointColor="#ff4400" pointSize={0.0006} />}
                     </MicromouseVisualizer>
                     <PlaybackControls showTimeDisplay={true} showSpeedControls={true} showSeekBar={true} />
-                </TrajectoryProvider>
+                </DataProvider>
             </div>
         );
     },

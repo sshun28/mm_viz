@@ -1,3 +1,8 @@
+export interface CellPosition {
+    x: number;
+    y: number;
+}
+
 export interface MazeData {
     size: number; // 迷路のサイズ(常に幅と高さは同一の正方形とする)
     walls: {
