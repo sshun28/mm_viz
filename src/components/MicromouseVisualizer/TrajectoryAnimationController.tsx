@@ -69,11 +69,6 @@ const TrajectoryAnimationController: React.FC = () => {
     // マウスの状態を更新（refのみ、Zustandは更新しない）
     updateMouseStateForTime(nextTime, trajectoryProfile, sortedTimestamps);
     
-    // デバッグログ（低頻度）
-    if (Math.random() < 0.01) {
-      console.log('TrajectoryAnimationController: time=', nextTime, 'mouseState=', currentMouseStateRef.current);
-    }
-    
     // 今回のフレーム時間を記録
     lastTimeRef.current = cappedDelta;
   });

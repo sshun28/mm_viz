@@ -66,7 +66,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({
           if (firstElement && trajectoryAnimation.currentMouseStateRef.current) {
             trajectoryAnimation.currentMouseStateRef.current = { ...firstElement };
             trajectoryAnimation.setCurrentTime(sortedTimestamps[0]);
-            console.log('Initialized trajectory animation with:', firstElement);
           }
         }
       }

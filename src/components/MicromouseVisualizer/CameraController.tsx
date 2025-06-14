@@ -313,11 +313,6 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     const regionWidth = Math.abs(x2 - x1);
     const regionHeight = Math.abs(y2 - y1);
     
-    console.log('performRegionZoom:', {
-      input: { x1, y1, x2, y2 },
-      calculated: { centerX, centerY, regionWidth, regionHeight }
-    });
-    
     // Three.jsの直交投影の座標系を確認
     // left/right: X軸 (左右)
     // top/bottom: Y軸 (上下)
@@ -366,14 +361,6 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
       }
     }
     
-    console.log('Range calculation details:', {
-      originalRegion: { width: regionWidth, height: regionHeight },
-      padding,
-      paddedRegion: { width: paddedRegionWidth, height: paddedRegionHeight },
-      screenAspect: aspect,
-      finalAdjusted: { width: adjustedWidth, height: adjustedHeight }
-    });
-    
     // 既存のカメラの投影設定を更新
     // 問題の修正: 直交投影カメラの投影範囲は、カメラ位置を基準とした相対座標で設定する
     // カメラは(centerX, centerY, height)の位置から(centerX, centerY, 0)を見下ろしているので
@@ -383,16 +370,6 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     orthoCamera.top = adjustedHeight / 2;
     orthoCamera.bottom = -adjustedHeight / 2;
     orthoCamera.updateProjectionMatrix();
-    
-    console.log('Camera projection bounds (fixed):', { 
-      left: -adjustedWidth / 2, 
-      right: adjustedWidth / 2, 
-      top: adjustedHeight / 2, 
-      bottom: -adjustedHeight / 2,
-      adjustedWidth,
-      adjustedHeight,
-      targetCenter: { centerX, centerY }
-    });
     
     // カメラの位置を設定（真上から見下ろす）
     const cameraHeight = mazeSize * CELL_SIZE * 2;
@@ -405,22 +382,10 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
     const target = new THREE.Vector3(centerX, centerY, 0);
     orthoCamera.lookAt(target);
     
-    console.log('Camera setup:', {
-      position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
-      target: { x: target.x, y: target.y, z: target.z },
-      center: { centerX, centerY }
-    });
-    
     // OrbitControlsのターゲットと状態を更新
     if (currentControls) {
       // 一時的にOrbitControlsを完全に無効化してテスト
-      console.log('Before OrbitControls update - Camera position:', {
-        x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z
-      });
-      console.log('Before OrbitControls update - Target:', {
-        x: target.x, y: target.y, z: target.z
-      });
-      
+
       // ターゲットを設定
       if ('target' in currentControls && typeof (currentControls as any).target?.copy === 'function') {
         (currentControls as any).target.copy(target);
@@ -450,20 +415,6 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
       // 投影行列を再更新（ズームリセット後）
       orthoCamera.updateProjectionMatrix();
       
-      console.log('Camera projection after zoom reset:', {
-        left: orthoCamera.left,
-        right: orthoCamera.right, 
-        top: orthoCamera.top,
-        bottom: orthoCamera.bottom,
-        zoom: orthoCamera.zoom
-      });
-      
-      console.log('After explicit camera setup:', {
-        position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
-        target: { x: target.x, y: target.y, z: target.z },
-        quaternion: orthoCamera.quaternion
-      });
-      
       // OrbitControlsの更新（カメラ設定とズームリセット後）
       if (typeof (currentControls as any).update === 'function') {
         (currentControls as any).update();
@@ -474,22 +425,11 @@ const CameraController = forwardRef<CameraControlAPI, CameraControllerProps>(({ 
         (currentControls as any).scale = 1.0;
       }
       
-      console.log('After OrbitControls update:', {
-        position: { x: orthoCamera.position.x, y: orthoCamera.position.y, z: orthoCamera.position.z },
-        cameraTarget: currentControls ? (currentControls as any).target : 'no target'
-      });
-      
       // OrbitControlsを再有効化（ズーム・パン操作を可能にする）
       (currentControls as any).enabled = wasEnabled;
       (currentControls as any).enableZoom = wasZoomEnabled;
       (currentControls as any).enablePan = wasPanEnabled;
       
-      console.log('OrbitControls settings restored:', {
-        enabled: wasEnabled,
-        enableZoom: wasZoomEnabled,
-        enablePan: wasPanEnabled,
-        enableRotate: (currentControls as any).enableRotate
-      });
     }
   }, [mazeSize, size.width, size.height]);
 

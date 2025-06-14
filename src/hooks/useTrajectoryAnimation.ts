@@ -9,8 +9,6 @@ export const useTrajectoryAnimation = () => {
   // アニメーション中の高頻度更新状態をrefで管理
   const currentTimeRef = useRef<number>(0);
   const currentMouseStateRef = useRef<MouseState>({ position: { x: 0, y: 0 }, angle: 0 });
-  
-  console.log('useTrajectoryAnimation hook created, initial state:', currentMouseStateRef.current);
 
   // 現在の時間に対応するマウス状態を計算する関数
   const updateMouseStateForTime = useCallback((
@@ -18,12 +16,9 @@ export const useTrajectoryAnimation = () => {
     trajectoryProfile: TrajectoryProfile,
     sortedTimestamps: number[]
   ) => {
-    console.log('updateMouseStateForTime called with time:', time, 'profile size:', trajectoryProfile.size);
-    
     // プロファイルが空の場合はデフォルト値
     if (sortedTimestamps.length === 0) {
       currentMouseStateRef.current = { position: { x: 0, y: 0 }, angle: 0 };
-      console.log('No trajectory data, using default position');
       return;
     }
 
@@ -68,7 +63,6 @@ export const useTrajectoryAnimation = () => {
     };
     
     currentMouseStateRef.current = interpolatedState;
-    console.log('Interpolated mouse state at time', time, ':', interpolatedState);
   }, []);
 
   // 時間を更新

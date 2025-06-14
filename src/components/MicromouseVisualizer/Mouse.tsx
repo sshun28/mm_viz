@@ -154,31 +154,18 @@ const Mouse: React.FC<MouseProps> = ({
     if (hasTrajectoryData) {
       // 軌道データがある場合：refベースの状態を使用（再生中・一時停止中問わず）
       currentMouseState = currentMouseStateRef.current;
-      if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
-        console.log('Trajectory state:', currentMouseState, 'isPlaying:', isPlaying);
-      }
     } else {
       // 軌道データがない場合：propsやZustandの状態を使用
       currentMouseState = staticMouseState;
-      if (Math.random() < 0.01) { // デバッグログの頻度を下げる（1%の確率）
-        console.log('Static state:', currentMouseState, 'isPlaying:', isPlaying);
-      }
     }
     
     if (!currentMouseState) {
-      console.log('No mouse state available');
       return;
     }
     
     const newX = currentMouseState.position.x;
     const newY = currentMouseState.position.y;
     const newAngle = currentMouseState.angle;
-    
-    // 位置が変わった場合のみ更新とログ
-    const currentPos = mouseRef.current.position;
-    if (Math.abs(currentPos.x - newX) > 0.001 || Math.abs(currentPos.y - newY) > 0.001) {
-      console.log('Mouse position updated:', { x: newX, y: newY, angle: newAngle });
-    }
     
     mouseRef.current.position.set(newX, newY, 0);
     mouseRef.current.rotation.set(0, 0, newAngle);
