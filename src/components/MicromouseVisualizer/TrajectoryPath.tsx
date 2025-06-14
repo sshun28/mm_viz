@@ -49,6 +49,8 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   const lastTimeRef = useRef<number>(-1);
   const sortedTimesRef = useRef<number[]>([]);
   const maxPointsRef = useRef<number>(1000); // インスタンス化するポイントの最大数
+  const bufferSizeRef = useRef<number>(0); // 現在のバッファサイズを追跡
+  const maxBufferSize = 10000; // 最大バッファサイズ（頂点数）
   
   // 点の色を決定（pointColorが未指定の場合はpastColorを使用）
   const actualPointColor = pointColor || pastColor;
@@ -86,6 +88,20 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     // 過去軌跡のラインを作成
     if (showLine) {
       const pastGeometry = new THREE.BufferGeometry();
+      
+      // バッファを事前に割り当て
+      const initialSize = Math.min(
+        trajectoryProfile?.size || 100, 
+        maxBufferSize
+      );
+      const positions = new Float32Array(initialSize * 3);
+      const positionAttribute = new THREE.BufferAttribute(positions, 3);
+      positionAttribute.setUsage(THREE.DynamicDrawUsage);
+      pastGeometry.setAttribute('position', positionAttribute);
+      pastGeometry.setDrawRange(0, 0); // 初期状態では何も描画しない
+      
+      bufferSizeRef.current = initialSize;
+      
       const pastLine = new THREE.Line(pastGeometry, pastMaterial);
       pastLineRef.current = pastLine;
       rootRef.current.add(pastLine);
@@ -106,9 +122,18 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     // クリーンアップ
     return () => {
       if (rootRef.current) {
-        if (pastLineRef.current) rootRef.current.remove(pastLineRef.current);
-        if (pointsInstancedMeshRef.current) rootRef.current.remove(pointsInstancedMeshRef.current);
+        if (pastLineRef.current) {
+          rootRef.current.remove(pastLineRef.current);
+          pastLineRef.current.geometry.dispose();
+          pastLineRef.current = null;
+        }
+        if (pointsInstancedMeshRef.current) {
+          rootRef.current.remove(pointsInstancedMeshRef.current);
+          pointsInstancedMeshRef.current.geometry.dispose();
+          pointsInstancedMeshRef.current = null;
+        }
       }
+      bufferSizeRef.current = 0;
     };
   }, [trajectoryProfile, pastMaterial, pointGeometry, pointMaterial, showLine, showPoints]);
   
@@ -125,6 +150,34 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       (pointsInstancedMeshRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
     }
   }, [pastColor, lineWidth, opacity, actualPointColor]);
+  
+  // TrajectoryProfileが変更された場合にバッファをリセット
+  useEffect(() => {
+    if (showLine && pastLineRef.current && trajectoryProfile) {
+      const geometry = pastLineRef.current.geometry;
+      const expectedSize = trajectoryProfile.size;
+      
+      // 新しい軌跡が現在のバッファサイズの50%未満の場合、バッファを縮小
+      // または新しい軌跡が現在のバッファより大きい場合、バッファを拡張
+      if (expectedSize < bufferSizeRef.current * 0.5 || expectedSize > bufferSizeRef.current) {
+        const newSize = Math.min(
+          Math.max(expectedSize * 2, 100), // 最小100頂点
+          maxBufferSize
+        );
+        
+        const positions = new Float32Array(newSize * 3);
+        const positionAttribute = new THREE.BufferAttribute(positions, 3);
+        positionAttribute.setUsage(THREE.DynamicDrawUsage);
+        geometry.setAttribute('position', positionAttribute);
+        geometry.setDrawRange(0, 0);
+        bufferSizeRef.current = newSize;
+      }
+      
+      // タイムスタンプのキャッシュをリセット
+      sortedTimesRef.current = Array.from(trajectoryProfile.keys()).sort((a, b) => a - b);
+      lastTimeRef.current = -1;
+    }
+  }, [trajectoryProfile, showLine]);
   
   // 毎フレーム軌跡を更新
   useFrame(() => {
@@ -166,15 +219,41 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     // 線の軌跡を更新
     if (showLine && pastLineRef.current) {
       const pastGeometry = pastLineRef.current.geometry;
+      const positionAttribute = pastGeometry.getAttribute('position') as THREE.BufferAttribute;
+      
       if (pastPoints.length > 1) {
-        const pastPositions = new Float32Array(pastPoints.flat());
-        pastGeometry.setAttribute('position', new THREE.BufferAttribute(pastPositions, 3));
+        // バッファサイズをチェックし、必要に応じて再作成
+        if (pastPoints.length > bufferSizeRef.current) {
+          // 新しいサイズを計算（余裕を持たせる）
+          const newSize = Math.min(
+            Math.max(pastPoints.length * 2, bufferSizeRef.current * 2),
+            maxBufferSize
+          );
+          
+          // 新しいバッファを作成
+          const newPositions = new Float32Array(newSize * 3);
+          const newAttribute = new THREE.BufferAttribute(newPositions, 3);
+          newAttribute.setUsage(THREE.DynamicDrawUsage);
+          pastGeometry.setAttribute('position', newAttribute);
+          bufferSizeRef.current = newSize;
+        }
+        
+        // 既存のバッファにデータをコピー
+        const positions = positionAttribute.array as Float32Array;
+        let index = 0;
+        for (const point of pastPoints) {
+          positions[index++] = point[0];
+          positions[index++] = point[1];
+          positions[index++] = point[2];
+        }
+        
+        // 実際に描画する頂点数を設定
+        pastGeometry.setDrawRange(0, pastPoints.length);
+        positionAttribute.needsUpdate = true;
         pastGeometry.computeBoundingSphere();
-        pastGeometry.attributes.position.needsUpdate = true;
       } else {
-        // ポイントが1個以下の場合はgeometryをクリア
-        pastGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([]), 3));
-        pastGeometry.attributes.position.needsUpdate = true;
+        // ポイントが1個以下の場合は描画範囲を0に設定
+        pastGeometry.setDrawRange(0, 0);
       }
     }
     
