@@ -109,12 +109,22 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
     
     // 点表示用のInstancedMeshを作成
     if (showPoints) {
-      const pointsInstancedMesh = new THREE.InstancedMesh(pointGeometry, pointMaterial, maxPointsRef.current);
+      // 軌道データのサイズに基づいて適切な最大インスタンス数を計算
+      const estimatedMaxPoints = trajectoryProfile?.size || 1000;
+      const actualMaxPoints = Math.min(estimatedMaxPoints, maxPointsRef.current);
+      
+      const pointsInstancedMesh = new THREE.InstancedMesh(pointGeometry, pointMaterial, actualMaxPoints);
       pointsInstancedMesh.count = 0; // 初期状態では何も表示しない
       pointsInstancedMesh.visible = true;
       pointsInstancedMesh.castShadow = false;
       pointsInstancedMesh.receiveShadow = false;
       pointsInstancedMesh.frustumCulled = false; // カリングを無効にして確実に表示
+      
+      // デバッグ情報を出力（開発環境のみ）
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`TrajectoryPath: Created InstancedMesh with ${actualMaxPoints} max instances for ${estimatedMaxPoints} trajectory points`);
+      }
+      
       pointsInstancedMeshRef.current = pointsInstancedMesh;
       rootRef.current.add(pointsInstancedMesh);
     }
@@ -153,7 +163,10 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
   
   // TrajectoryProfileが変更された場合にバッファをリセット
   useEffect(() => {
-    if (showLine && pastLineRef.current && trajectoryProfile) {
+    if (!rootRef.current || !trajectoryProfile) return;
+    
+    // 線のバッファを更新
+    if (showLine && pastLineRef.current) {
       const geometry = pastLineRef.current.geometry;
       const expectedSize = trajectoryProfile.size;
       
@@ -177,7 +190,36 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
       sortedTimesRef.current = Array.from(trajectoryProfile.keys()).sort((a, b) => a - b);
       lastTimeRef.current = -1;
     }
-  }, [trajectoryProfile, showLine]);
+    
+    // InstancedMeshの再作成チェック
+    if (showPoints && pointsInstancedMeshRef.current) {
+      const currentMaxInstances = pointsInstancedMeshRef.current.instanceMatrix.count;
+      const requiredInstances = trajectoryProfile.size;
+      
+      // 必要なインスタンス数が現在の最大値を大幅に超える場合、InstancedMeshを再作成
+      if (requiredInstances > currentMaxInstances) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`TrajectoryPath: Recreating InstancedMesh: ${currentMaxInstances} -> ${requiredInstances} instances`);
+        }
+        
+        // 古いInstancedMeshを削除
+        rootRef.current.remove(pointsInstancedMeshRef.current);
+        pointsInstancedMeshRef.current.geometry.dispose();
+        
+        // 新しいInstancedMeshを作成
+        const newMaxInstances = Math.min(requiredInstances, maxPointsRef.current);
+        const newPointsInstancedMesh = new THREE.InstancedMesh(pointGeometry, pointMaterial, newMaxInstances);
+        newPointsInstancedMesh.count = 0;
+        newPointsInstancedMesh.visible = true;
+        newPointsInstancedMesh.castShadow = false;
+        newPointsInstancedMesh.receiveShadow = false;
+        newPointsInstancedMesh.frustumCulled = false;
+        
+        pointsInstancedMeshRef.current = newPointsInstancedMesh;
+        rootRef.current.add(newPointsInstancedMesh);
+      }
+    }
+  }, [trajectoryProfile, showLine, showPoints, pointGeometry, pointMaterial]);
   
   // 毎フレーム軌跡を更新
   useFrame(() => {
@@ -240,15 +282,33 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
         
         // 既存のバッファにデータをコピー
         const positions = positionAttribute.array as Float32Array;
+        const maxVertices = positions.length / 3;
+        
+        // バッファオーバーフローを防ぐチェック
+        if (pastPoints.length > maxVertices) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`TrajectoryPath: Attempted to render ${pastPoints.length} vertices, but buffer only supports ${maxVertices} vertices`);
+          }
+          return;
+        }
+        
         let index = 0;
         for (const point of pastPoints) {
+          // 境界チェックを追加
+          if (index + 2 >= positions.length) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('TrajectoryPath: Buffer overflow prevented during position update');
+            }
+            break;
+          }
           positions[index++] = point[0];
           positions[index++] = point[1];
           positions[index++] = point[2];
         }
         
-        // 実際に描画する頂点数を設定
-        pastGeometry.setDrawRange(0, pastPoints.length);
+        // 実際に描画する頂点数を設定（安全な範囲内で）
+        const safeVertexCount = Math.min(pastPoints.length, maxVertices);
+        pastGeometry.setDrawRange(0, safeVertexCount);
         positionAttribute.needsUpdate = true;
         pastGeometry.computeBoundingSphere();
       } else {
@@ -272,8 +332,8 @@ const TrajectoryPath: React.FC<TrajectoryPathProps> = ({
  * パフォーマンスを考慮して、InstancedMeshのmatrixを直接更新
  */
 function updatePointsDisplay(points: [number, number, number][], instancedMesh: THREE.InstancedMesh) {
-  const maxInstances = 1000;
-  const pointCount = Math.min(points.length, maxInstances);
+  // InstancedMeshの最大インスタンス数を取得（初期化時に設定された値）
+  const maxInstances = instancedMesh.instanceMatrix.count;
   
   // ポイントが無い場合はInstancedMeshを非表示
   if (points.length === 0) {
@@ -281,10 +341,20 @@ function updatePointsDisplay(points: [number, number, number][], instancedMesh: 
     return;
   }
   
+  // 実際に表示可能な点数を計算（最大インスタンス数を超えないように）
+  const pointCount = Math.min(points.length, maxInstances);
+  
+  // バッファオーバーフローを防ぐため、事前チェック
+  if (pointCount > maxInstances) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`TrajectoryPath: Attempted to render ${pointCount} points, but InstancedMesh only supports ${maxInstances} instances`);
+    }
+    return;
+  }
+  
   // 各ポイントの位置を設定
   for (let i = 0; i < pointCount; i++) {
     const [x, y, z] = points[i];
-    // 点の高さを線と同じにする（zをそのまま使用）
     
     // Matrix4を明示的に作成して位置を設定
     const matrix = new THREE.Matrix4();
@@ -293,8 +363,10 @@ function updatePointsDisplay(points: [number, number, number][], instancedMesh: 
     instancedMesh.setMatrixAt(i, matrix);
   }
   
-  // 表示するインスタンス数を設定
-  instancedMesh.count = pointCount;
+  // 表示するインスタンス数を安全に設定
+  instancedMesh.count = Math.max(0, Math.min(pointCount, maxInstances));
+  
+  // バッファ更新を要求（描画前に同期される）
   instancedMesh.instanceMatrix.needsUpdate = true;
 }
 
