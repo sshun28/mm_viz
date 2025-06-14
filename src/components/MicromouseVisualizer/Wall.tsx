@@ -105,6 +105,19 @@ export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
   const fbx = useFBX(getModelPath('wall'));
   const { scene } = useThree();
   
+  // 最大壁数を動的に計算（安全マージン付き）
+  const maxWalls = useMemo(() => {
+    const baseCount = walls.length;
+    const maxExpectedWalls = Math.max(baseCount * 2, 5000); // 安全マージン
+    
+    // デバッグ情報を出力（開発環境のみ）
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`WallInstances: Setting max walls to ${maxExpectedWalls} for ${baseCount} actual walls`);
+    }
+    
+    return maxExpectedWalls;
+  }, [walls.length]);
+  
   // モデルの基本的なジオメトリとマテリアルを抽出
   const { geometries, materials } = useMemo(() => {
     if (!fbx) return { geometries: [], materials: [] };
@@ -161,6 +174,13 @@ export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
     return null;
   }
   
+  // バッファサイズの安全性チェック
+  if (walls.length > maxWalls) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`WallInstances: Wall count ${walls.length} exceeds maximum ${maxWalls}. Some walls may not render correctly.`);
+    }
+  }
+  
   return (
     <>
       {geometries.map((geometry, index) => (
@@ -168,7 +188,7 @@ export const WallInstances: React.FC<WallInstancesProps> = ({ walls }) => {
           key={`wall-instances-${index}`}
           geometry={geometry}
           material={materials[index]}
-          limit={walls.length}
+          limit={maxWalls}
           range={walls.length}
           castShadow
           receiveShadow

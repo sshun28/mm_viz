@@ -33,6 +33,19 @@ export const PillarInstances: React.FC<PillarInstancesProps> = ({ positions }) =
     // FBXモデルを読み込む
     const fbx = useFBX(getModelPath('pillar'));
     
+    // 最大柱数を動的に計算（安全マージン付き）
+    const maxPillars = useMemo(() => {
+        const baseCount = positions.length;
+        const maxExpectedPillars = Math.max(baseCount * 2, 2000); // 安全マージン
+        
+        // デバッグ情報を出力（開発環境のみ）
+        if (process.env.NODE_ENV === 'development') {
+            console.debug(`PillarInstances: Setting max pillars to ${maxExpectedPillars} for ${baseCount} actual pillars`);
+        }
+        
+        return maxExpectedPillars;
+    }, [positions.length]);
+    
     // FBXモデルからジオメトリとマテリアルの配列を抽出
     const meshes = useMemo(() => {
         if (!fbx) return [];
@@ -81,6 +94,18 @@ export const PillarInstances: React.FC<PillarInstancesProps> = ({ positions }) =
         return result;
     }, [fbx]);
     
+    // モデルが読み込まれていない場合は早期リターン
+    if (meshes.length === 0 || positions.length === 0) {
+        return null;
+    }
+    
+    // バッファサイズの安全性チェック
+    if (positions.length > maxPillars) {
+        if (process.env.NODE_ENV === 'development') {
+            console.warn(`PillarInstances: Pillar count ${positions.length} exceeds maximum ${maxPillars}. Some pillars may not render correctly.`);
+        }
+    }
+    
     return (
         <>
             {meshes.map((mesh, meshIndex) => (
@@ -88,7 +113,7 @@ export const PillarInstances: React.FC<PillarInstancesProps> = ({ positions }) =
                     key={`pillar-instances-${meshIndex}`}
                     geometry={mesh.geometry}
                     material={mesh.material}
-                    limit={positions.length} // インスタンスの最大数
+                    limit={maxPillars} // インスタンスの最大数（安全マージン付き）
                     range={positions.length} // 実際に表示するインスタンス数
                     castShadow
                     receiveShadow

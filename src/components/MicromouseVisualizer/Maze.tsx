@@ -81,8 +81,14 @@ const Maze: React.FC<{ mazeData: MazeData }> = ({ mazeData }) => {
   return (
     <group>
       {floor}
-      <WallInstances walls={wallConfigs} />
-      <PillarInstances positions={pillarPositions} />
+      <WallInstances 
+        key={`walls-${size}-${wallConfigs.length}`}
+        walls={wallConfigs} 
+      />
+      <PillarInstances 
+        key={`pillars-${size}-${pillarPositions.length}`}
+        positions={pillarPositions} 
+      />
     </group>
   );
 };
